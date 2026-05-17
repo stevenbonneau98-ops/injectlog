@@ -1798,7 +1798,8 @@ async function renderPatients() {
 
   const patients = await db.listPatients();
   const today = todayISO();
-  if (!state.patientFilters) state.patientFilters = { status: 'all', drug: 'all', indication: 'all' };
+  if (!state.patientFilters) state.patientFilters = { status: 'all', drug: 'all', indication: 'all', duration: 'all' };
+  if (!('duration' in state.patientFilters)) state.patientFilters.duration = 'all';
   const enriched = [];
   let due = 0, late = 0;
   for (const p of patients) {
@@ -1810,13 +1811,27 @@ async function renderPatients() {
     if (sOd.status === 'late') late++; if (sOs.status === 'late') late++;
     const rank = (s) => ({ late: 0, due: 1, future: 2, none: 3 }[s] ?? 9);
     const worst = Math.min(rank(sOd.status), rank(sOs.status));
-    enriched.push({ p, sOd, sOs, worst, injs });
+    // Duration of treatment = years between earliest injection and today.
+    // null if the patient has no injections logged yet.
+    const earliest = injs.length ? injs[injs.length - 1].date : null; // listInjections returns DESC
+    const years = earliest ? daysBetween(earliest, today) / 365.25 : null;
+    enriched.push({ p, sOd, sOs, worst, injs, years });
   }
   enriched.sort((a, b) => a.worst - b.worst || (formatPatientName(a.p).localeCompare(formatPatientName(b.p))));
 
   const q = (state.patientSearch || '').trim().toLowerCase();
   const f = state.patientFilters;
-  const filtered = enriched.filter(({ p, sOd, sOs }) => {
+  const durationMatch = (years, bucket) => {
+    if (bucket === 'all') return true;
+    if (bucket === 'none') return years == null;
+    if (years == null) return false;
+    if (bucket === 'lt1') return years < 1;
+    if (bucket === '1to3') return years >= 1 && years < 3;
+    if (bucket === '3to5') return years >= 3 && years < 5;
+    if (bucket === 'gte5') return years >= 5;
+    return true;
+  };
+  const filtered = enriched.filter(({ p, sOd, sOs, years }) => {
     if (q && !((p.name || '') + (p.patientNumber || '') + (p.initials || '')).toLowerCase().includes(q)) return false;
     if (f.status !== 'all') {
       const wanted = f.status; // 'due' | 'late' | 'future' | 'none'
@@ -1830,6 +1845,7 @@ async function renderPatients() {
       const inds = [p.eyes.od.active ? p.eyes.od.diagnosis : null, p.eyes.os.active ? p.eyes.os.diagnosis : null];
       if (!inds.includes(f.indication)) return false;
     }
+    if (!durationMatch(years, f.duration)) return false;
     return true;
   });
 
@@ -1853,7 +1869,7 @@ async function renderPatients() {
 
   const emailBtn = (due + late) > 0 ? `
     <button id="email-today" class="btn-secondary" style="margin-bottom:12px;">${escapeHtml(t('home.email.btn'))}</button>` : '';
-  const hasFilter = q || f.status !== 'all' || f.drug !== 'all' || f.indication !== 'all';
+  const hasFilter = q || f.status !== 'all' || f.drug !== 'all' || f.indication !== 'all' || f.duration !== 'all';
   // List is intentionally hidden until the user types a query OR picks at
   // least one filter chip. This keeps the home screen calm and prevents
   // accidental exposure of identifiers when the device is glanced at.
@@ -1915,9 +1931,20 @@ async function renderPatients() {
           <button type="button" class="chip ${f.drug === 'all' ? 'selected' : ''}" data-filter-drug="all">${escapeHtml(fr ? 'Tous produits' : 'All drugs')}</button>
           ${DRUGS.filter(d => d.key !== 'other').map(d => `<button type="button" class="chip ${f.drug === d.key ? 'selected' : ''}" data-filter-drug="${d.key}" style="${f.drug === d.key ? 'background:' + d.color + ';color:#fff;' : ''}">${escapeHtml(fr ? d.fr : d.en)}</button>`).join('')}
         </div>
-        <div class="chip-grid" style="margin-bottom:14px;">
+        <div class="chip-grid" style="margin-bottom:10px;">
           <button type="button" class="chip ${f.indication === 'all' ? 'selected' : ''}" data-filter-ind="all">${escapeHtml(fr ? 'Toutes indic.' : 'All indications')}</button>
           ${INDICATIONS.filter(i => i.key !== 'other').map(i => `<button type="button" class="chip ${f.indication === i.key ? 'selected' : ''}" data-filter-ind="${i.key}">${escapeHtml(fr ? i.fr : i.en)}</button>`).join('')}
+        </div>
+        <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin: 4px 4px 4px;">${escapeHtml(fr ? 'Durée de traitement' : 'Treatment duration')}</div>
+        <div class="chip-grid" style="margin-bottom:14px;">
+          ${[
+            ['all',  fr ? 'Toutes' : 'Any'],
+            ['lt1',  fr ? '< 1 an' : '< 1 yr'],
+            ['1to3', '1–3 ' + (fr ? 'ans' : 'yr')],
+            ['3to5', '3–5 ' + (fr ? 'ans' : 'yr')],
+            ['gte5', '≥ 5 ' + (fr ? 'ans' : 'yr')],
+            ['none', fr ? 'Jamais injecté' : 'Naive'],
+          ].map(([k, lab]) => `<button type="button" class="chip ${f.duration === k ? 'selected' : ''}" data-filter-dur="${k}">${escapeHtml(lab)}</button>`).join('')}
         </div>
         ${hasFilter ? `<button id="ps-clear" class="btn-ghost" style="font-size:12px; padding:6px 10px;">${escapeHtml(fr ? '↺ Réinitialiser' : '↺ Reset filters')}</button>` : ''}
       </div>
@@ -1940,10 +1967,11 @@ async function renderPatients() {
   view.querySelectorAll('[data-filter-status]').forEach(b => b.onclick = () => { state.patientFilters.status = b.dataset.filterStatus; renderPatients(); });
   view.querySelectorAll('[data-filter-drug]').forEach(b => b.onclick = () => { state.patientFilters.drug = b.dataset.filterDrug; renderPatients(); });
   view.querySelectorAll('[data-filter-ind]').forEach(b => b.onclick = () => { state.patientFilters.indication = b.dataset.filterInd; renderPatients(); });
+  view.querySelectorAll('[data-filter-dur]').forEach(b => b.onclick = () => { state.patientFilters.duration = b.dataset.filterDur; renderPatients(); });
   const clr = document.getElementById('ps-clear');
   if (clr) clr.onclick = () => {
     state.patientSearch = '';
-    state.patientFilters = { status: 'all', drug: 'all', indication: 'all' };
+    state.patientFilters = { status: 'all', drug: 'all', indication: 'all', duration: 'all' };
     renderPatients();
   };
   view.querySelectorAll('.row[data-pid]').forEach(r => {
@@ -2320,9 +2348,7 @@ async function renderPatient() {
     const c = drug(eye.drug).color;
     const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
     const eyeInjAsc = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    const eyeInj = injs.filter(i => i.eye === eyeKey).slice(0, 3);
-    const spark = vaSparkSvg(injs.filter(i => i.eye === eyeKey));
-    const crtSpark = crtSparkSvg(injs.filter(i => i.eye === eyeKey));
+    const eyeInj = injs.filter(i => i.eye === eyeKey).slice(0, 5);
     const tachy = isTachyphylaxis(eyeInjAsc);
     return `
       <div class="eye-card" data-eye="${eyeKey}">
@@ -2340,12 +2366,9 @@ async function renderPatient() {
           </div>
           <p style="font-size:13px; color:var(--text2); margin: 0 0 8px;">
             <strong>${escapeHtml(t('eye.diagnosis'))}:</strong> ${escapeHtml(indicationLabel(eye.diagnosis) || '—')}<br>
-            <strong>${escapeHtml(t('eye.last'))}:</strong> ${s.lastDate ? escapeHtml(fmtDate(s.lastDate)) : escapeHtml(t('eye.last.never'))}<br>
-            <strong>${escapeHtml(t('eye.next'))}:</strong> ${s.nextDate ? escapeHtml(fmtDate(s.nextDate)) : '—'}
+            <strong>${escapeHtml(t('eye.last'))}:</strong> ${s.lastDate ? escapeHtml(fmtDate(s.lastDate)) : escapeHtml(t('eye.last.never'))}
             ${s.loadingTarget ? `<br><strong>${escapeHtml(t('eye.loading.target'))}:</strong> ${s.loadingDone}/${s.loadingTarget}` : ''}
           </p>
-          ${spark ? `<div style="margin: 6px 0;"><div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(t('eye.va.trend'))}</div>${spark}</div>` : ''}
-          ${crtSpark ? `<div style="margin: 6px 0;"><div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(t('eye.crt.trend'))}</div>${crtSpark}</div>` : ''}
           ${eyeInj.length ? `
             <div style="border-top:1px solid var(--separator); padding-top:8px; margin: 8px 0;">
               ${eyeInj.map(i => `
@@ -2353,7 +2376,6 @@ async function renderPatient() {
                   <span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(drugLabel(i.drug))}</span>
                   <div class="meta">
                     <h3 style="font-size:13px;">${escapeHtml(fmtDate(i.date))}</h3>
-                    <p style="font-size:12px;">${escapeHtml((i.vaSnellen || ''))}${i.vaSnellen && i.crtUm ? ' · ' : ''}${i.crtUm ? `CRT ${i.crtUm} µm` : ''}${i.octPhoto ? ' · 📷' : ''}</p>
                   </div>
                   <div class="chev">›</div>
                 </div>`).join('')}
@@ -2369,11 +2391,54 @@ async function renderPatient() {
   };
 
   const allergies = Array.isArray(patient.allergies) ? patient.allergies : [];
+
+  // Next-due highlight strip — earliest upcoming injection across both eyes.
+  // Background colour mirrors the worst (most-overdue) status so a glance
+  // at the top says "this patient is on schedule" / "this patient is late".
+  const fr = getLang() === 'fr';
+  const today = todayISO();
+  const nextEntries = [];
+  for (const ek of ['od', 'os']) {
+    const eye = { ...patient.eyes[ek], _eyeKey: ek };
+    if (!eye.active) continue;
+    const s = eyeStatus(eye, injs, today);
+    if (!s.nextDate) continue;
+    nextEntries.push({ eye: ek, drug: eye.drug, ...s });
+  }
+  nextEntries.sort((a, b) => (a.nextDate || '').localeCompare(b.nextDate || ''));
+  const worstStatus = nextEntries.reduce((acc, e) => {
+    const rank = { late: 3, due: 2, future: 1 };
+    return (rank[e.status] || 0) > (rank[acc] || 0) ? e.status : acc;
+  }, 'future');
+  const stripBg = {
+    late:   'background:rgba(220,38,38,0.10); border-color:rgba(220,38,38,0.30);',
+    due:    'background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.30);',
+    future: 'background:rgba(10,107,255,0.08); border-color:rgba(10,107,255,0.25);',
+  }[worstStatus] || '';
+  const nextHighlight = nextEntries.length ? `
+    <div class="card" style="${stripBg} display:flex; align-items:flex-start; gap:10px; padding:12px 14px;">
+      <span style="font-size:22px; line-height:1;">📅</span>
+      <div style="flex:1;">
+        <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; font-weight:600;">${escapeHtml(fr ? 'Prochaine injection' : 'Next injection due')}</div>
+        ${nextEntries.map(e => {
+          const days = e.daysToNext;
+          const dStr = days == null ? '' : (days < 0
+            ? ` <span style="color:var(--ember); font-weight:700;">· ${-days}${fr ? 'j en retard' : 'd late'}</span>`
+            : (days === 0 ? ` <span style="font-weight:700;">· ${fr ? "aujourd'hui" : 'today'}</span>` : ` <span style="color:var(--text3);">· ${fr ? 'dans ' + days + ' j' : 'in ' + days + ' d'}</span>`));
+          return `
+            <div style="margin-top:4px; font-size:14px;">
+              <span class="drug-pill" style="background:${drug(e.drug).color}; flex:0 0 auto;">${escapeHtml(e.eye.toUpperCase())} · ${escapeHtml(drugLabel(e.drug))}</span>
+              <strong style="font-family:var(--serif); font-size:16px; margin-left:6px;">${escapeHtml(fmtDate(e.nextDate))}</strong>${dStr}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
   view.innerHTML = `
     <div class="card">
       <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin:0 0 4px;">${escapeHtml(formatPatientName(patient))}</h2>
       <p style="color:var(--text3); font-size:13px; margin:0;">
-        ${patient.patientNumber ? `#${escapeHtml(patient.patientNumber)}` : ''}${patient.patientNumber && patient.dob ? ' · ' : ''}${patient.dob ? (getLang() === 'fr' ? 'DDN ' : 'DOB ') + escapeHtml(fmtDate(patient.dob)) : ''}
+        ${patient.patientNumber ? `#${escapeHtml(patient.patientNumber)}` : ''}${patient.patientNumber && patient.dob ? ' · ' : ''}${patient.dob ? (fr ? 'DDN ' : 'DOB ') + escapeHtml(fmtDate(patient.dob)) : ''}
       </p>
       ${patient.notes ? `<p style="font-size:13px; margin: 10px 0 0; line-height:1.45;">${escapeHtml(patient.notes)}</p>` : ''}
       <div style="margin-top:10px; display:flex; gap:8px;">
@@ -2381,6 +2446,7 @@ async function renderPatient() {
         <button id="pstats" class="btn-ghost" style="padding:6px 8px;">${escapeHtml(t('patient.stats'))}</button>
       </div>
     </div>
+    ${nextHighlight}
     ${allergies.length ? `
       <div class="card" style="background:rgba(220,38,38,0.08); border-color:rgba(220,38,38,0.35); display:flex; align-items:center; gap:10px;">
         <span style="font-size:20px;">⚠</span>
@@ -2818,6 +2884,13 @@ async function renderPatientStats() {
   if (!patient) return go('patients');
   const injs = await db.listInjections(patient.id);
   titleEl.textContent = t('pstats.title');
+  primaryBtn.style.display = 'none';
+
+  // Per-eye zoom + table-open state lives on the in-memory state object
+  // so it persists across re-renders within the same patient-stats visit.
+  if (!state.tlZoom) state.tlZoom = {};
+  if (!state.tlOffset) state.tlOffset = {};
+  if (!state.tlTableOpen) state.tlTableOpen = {};
 
   const eyeStats = (eyeKey) => {
     const list = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2827,15 +2900,16 @@ async function renderPatientStats() {
     const switches = [];
     let lastDrug = null;
     for (const i of list) { if (lastDrug && i.drug !== lastDrug) switches.push(i); lastDrug = i.drug; }
-    // Longest dry interval = longest gap between consecutive injections
     let longest = 0;
     for (let i = 1; i < list.length; i++) {
       const gap = daysBetween(list[i - 1].date, list[i].date);
       if (gap > longest) longest = gap;
     }
-    const baselineVA = snellenToLogMAR(list.find(i => i.vaSnellen)?.vaSnellen);
-    const latestVA = snellenToLogMAR([...list].reverse().find(i => i.vaSnellen)?.vaSnellen);
-    const vaLines = (baselineVA != null && latestVA != null) ? logMarToLines(baselineVA - latestVA).toFixed(1) : null;
+    const baselineVAStr = list.find(i => i.vaSnellen)?.vaSnellen || null;
+    const latestVAStr = [...list].reverse().find(i => i.vaSnellen)?.vaSnellen || null;
+    const baselineVA = snellenToLogMAR(baselineVAStr);
+    const latestVA = snellenToLogMAR(latestVAStr);
+    const vaImproved = (baselineVA != null && latestVA != null) ? (baselineVA - latestVA) : null; // >0 = better
     const baselineCRT = list.find(i => typeof i.crtUm === 'number')?.crtUm;
     const latestCRT = [...list].reverse().find(i => typeof i.crtUm === 'number')?.crtUm;
     const crtDelta = (baselineCRT && latestCRT) ? (latestCRT - baselineCRT) : null;
@@ -2844,7 +2918,8 @@ async function renderPatientStats() {
       years: years.toFixed(1),
       switches: switches.length,
       longestWeeks: (longest / 7).toFixed(1),
-      vaLines, crtDelta,
+      baselineVAStr, latestVAStr, vaImproved,
+      crtDelta,
     };
   };
 
@@ -2852,43 +2927,142 @@ async function renderPatientStats() {
   const os = eyeStats('os');
   const odInj = injs.filter(i => i.eye === 'od').slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const osInj = injs.filter(i => i.eye === 'os').slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  const card = (eyeKey, s, list) => `
-    <div class="card" style="margin-bottom:10px;">
-      <h3 style="font-family:var(--serif); margin:0 0 8px; font-size:16px;">${escapeHtml(eyeKey === 'od' ? t('eye.od') : t('eye.os'))}</h3>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px;">
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.injections'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.count || 0}</div></div>
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.years.on.tx'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.years ?? '0'}</div></div>
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.switches'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.switches ?? 0}</div></div>
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.longest.dry'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.longestWeeks ?? '—'}</div></div>
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.va.delta'))}</div><div style="font-family:var(--serif); font-size:22px; color:${s.vaLines > 0 ? 'var(--green)' : (s.vaLines < 0 ? 'var(--ember)' : 'var(--text)')}">${s.vaLines != null ? (s.vaLines > 0 ? '+' : '') + s.vaLines : '—'}</div></div>
-        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.crt.delta'))}</div><div style="font-family:var(--serif); font-size:22px; color:${s.crtDelta < 0 ? 'var(--green)' : (s.crtDelta > 0 ? 'var(--ember)' : 'var(--text)')}">${s.crtDelta != null ? (s.crtDelta > 0 ? '+' : '') + s.crtDelta + ' µm' : '—'}</div></div>
-      </div>
-      ${list.length ? `
-        <div style="margin-top:12px;">
-          <div style="color:var(--text3); font-size:11px; text-transform:uppercase; margin-bottom:4px;">${escapeHtml(t('pstats.timeline'))}</div>
-          ${combinedTimelineSvg(list)}
-        </div>` : ''}
-    </div>`;
+
+  const fr = getLang() === 'fr';
+  const vaTile = (s) => {
+    if (!s.baselineVAStr || !s.latestVAStr) return '—';
+    const color = s.vaImproved > 0.05 ? 'var(--green)' : (s.vaImproved < -0.05 ? 'var(--ember)' : 'var(--text)');
+    return `<span style="color:${color}; font-family:var(--serif); font-size:18px;">${escapeHtml(s.baselineVAStr)} <span style="color:var(--text3); font-size:14px;">→</span> ${escapeHtml(s.latestVAStr)}</span>`;
+  };
+
+  const visitsTable = (eyeKey, list) => {
+    const desc = list.slice().reverse();
+    return `
+      <table style="width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums;">
+        <thead><tr style="text-align:left; color:var(--text3); font-weight:600;">
+          <th style="padding:4px 6px 4px 0;">${escapeHtml(fr ? 'Date' : 'Date')}</th>
+          <th style="padding:4px 6px;">${escapeHtml(fr ? 'Produit' : 'Drug')}</th>
+          <th style="padding:4px 6px;">VA</th>
+          <th style="padding:4px 6px;">CRT</th>
+        </tr></thead>
+        <tbody>
+          ${desc.map(i => `
+            <tr style="border-top:1px solid var(--separator);">
+              <td style="padding:5px 6px 5px 0;">${escapeHtml(fmtDate(i.date))}</td>
+              <td style="padding:5px 6px;"><span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(drugLabel(i.drug))}</span></td>
+              <td style="padding:5px 6px;">${escapeHtml(i.vaSnellen || '—')}</td>
+              <td style="padding:5px 6px;">${typeof i.crtUm === 'number' ? i.crtUm + ' µm' : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  };
+
+  const card = (eyeKey, s, list) => {
+    const zoom = state.tlZoom[eyeKey] || 1;
+    const offset = state.tlOffset[eyeKey] || 0;
+    const tableOpen = !!state.tlTableOpen[eyeKey];
+    return `
+      <div class="card" style="margin-bottom:10px;">
+        <h3 style="font-family:var(--serif); margin:0 0 8px; font-size:16px;">${escapeHtml(eyeKey === 'od' ? t('eye.od') : t('eye.os'))}</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px;">
+          <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.injections'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.count || 0}</div></div>
+          <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.years.on.tx'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.years ?? '0'}</div></div>
+          <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.switches'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.switches ?? 0}</div></div>
+          <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.longest.dry'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.longestWeeks ?? '—'}</div></div>
+          <div style="grid-column:1 / -1;"><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(fr ? 'AV (Snellen) départ → actuel' : 'VA (Snellen) baseline → latest')}</div><div>${vaTile(s)}</div></div>
+          <div style="grid-column:1 / -1;"><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.crt.delta'))}</div><div style="font-family:var(--serif); font-size:20px; color:${s.crtDelta < 0 ? 'var(--green)' : (s.crtDelta > 0 ? 'var(--ember)' : 'var(--text)')}">${s.crtDelta != null ? (s.crtDelta > 0 ? '+' : '') + s.crtDelta + ' µm' : '—'}</div></div>
+        </div>
+        ${list.length ? `
+          <div style="margin-top:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.timeline'))}</div>
+              <div style="display:flex; gap:4px;">
+                <button class="btn-ghost" data-tl-zoom-out="${eyeKey}" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 ? 'disabled' : ''}>−</button>
+                <button class="btn-ghost" data-tl-zoom-in="${eyeKey}" style="padding:2px 8px; font-size:14px;" ${zoom >= 8 ? 'disabled' : ''}>+</button>
+                <button class="btn-ghost" data-tl-pan="${eyeKey}" data-dir="-1" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 || offset <= 0 ? 'disabled' : ''}>‹</button>
+                <button class="btn-ghost" data-tl-pan="${eyeKey}" data-dir="1" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 || offset >= 1 - 1 / zoom - 0.001 ? 'disabled' : ''}>›</button>
+                <button class="btn-ghost" data-tl-reset="${eyeKey}" style="padding:2px 8px; font-size:11px;" ${zoom === 1 && offset === 0 ? 'disabled' : ''}>${escapeHtml(fr ? 'Réinit.' : 'Reset')}</button>
+              </div>
+            </div>
+            ${combinedTimelineSvg(list, { zoom, offset })}
+          </div>
+          <div class="section-toggle ${tableOpen ? 'open' : ''}" data-tl-table="${eyeKey}" style="margin-top:8px;">
+            <div class="toggle-head" style="padding:8px 4px;"><span class="caret">›</span><span style="font-size:14px;">${escapeHtml(fr ? 'Visites (récent → ancien)' : 'Visits (recent → oldest)')}</span><span class="sub">${list.length}</span></div>
+            <div class="toggle-body">${visitsTable(eyeKey, list)}</div>
+          </div>` : ''}
+      </div>`;
+  };
   view.innerHTML = `
     <h3 class="section-title">${escapeHtml(formatPatientName(patient))}</h3>
     ${card('od', od, odInj)}
     ${card('os', os, osInj)}
     <p style="font-size:11px; color:var(--text3); line-height:1.4; margin: 4px 4px 12px;">${escapeHtml(t('pstats.timeline.legend'))}</p>`;
+
+  view.querySelectorAll('[data-tl-zoom-in]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.tlZoomIn;
+    state.tlZoom[k] = Math.min(8, (state.tlZoom[k] || 1) * 2);
+    // Keep the right edge anchored when zooming in.
+    const z = state.tlZoom[k];
+    const maxOffset = Math.max(0, 1 - 1 / z);
+    state.tlOffset[k] = Math.min(maxOffset, (state.tlOffset[k] || 0) + (maxOffset - (state.tlOffset[k] || 0)) * 0.5);
+    renderPatientStats();
+  });
+  view.querySelectorAll('[data-tl-zoom-out]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.tlZoomOut;
+    state.tlZoom[k] = Math.max(1, (state.tlZoom[k] || 1) / 2);
+    const z = state.tlZoom[k];
+    const maxOffset = Math.max(0, 1 - 1 / z);
+    state.tlOffset[k] = Math.min(maxOffset, state.tlOffset[k] || 0);
+    renderPatientStats();
+  });
+  view.querySelectorAll('[data-tl-pan]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.tlPan;
+    const dir = Number(btn.dataset.dir);
+    const z = state.tlZoom[k] || 1;
+    const step = (1 / z) * 0.4;
+    const maxOffset = Math.max(0, 1 - 1 / z);
+    state.tlOffset[k] = Math.max(0, Math.min(maxOffset, (state.tlOffset[k] || 0) + step * dir));
+    renderPatientStats();
+  });
+  view.querySelectorAll('[data-tl-reset]').forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.tlReset;
+    state.tlZoom[k] = 1; state.tlOffset[k] = 0;
+    renderPatientStats();
+  });
+  view.querySelectorAll('[data-tl-table]').forEach(box => {
+    box.querySelector('.toggle-head').onclick = () => {
+      const k = box.dataset.tlTable;
+      state.tlTableOpen[k] = !state.tlTableOpen[k];
+      box.classList.toggle('open');
+    };
+  });
 }
 
-// Combined per-eye timeline. Single SVG: CRT line (left axis), logMAR VA
-// line dashed (right axis, lower = better), drug-coloured dots per
-// injection, vertical lines at drug switches, ⚠ glyph at complications.
-function combinedTimelineSvg(list) {
-  const W = 320, H = 160, padL = 28, padR = 16, padT = 12, padB = 22;
+// Combined per-eye timeline. Single SVG: CRT line (left axis, blue), VA
+// (Snellen logMAR) line dashed (right axis, lower = better), drug-coloured
+// dots per injection, vertical lines at drug switches, ⚠ at complications.
+// `opts.zoom` (1..8) and `opts.offset` (0..1-1/zoom) restrict the time
+// window so the user can drill into a busy stretch.
+function combinedTimelineSvg(list, opts = {}) {
+  const zoom = Math.max(1, opts.zoom || 1);
+  const offset = Math.max(0, Math.min(1 - 1 / zoom, opts.offset || 0));
+  const W = 340, H = 220, padL = 36, padR = 36, padT = 16, padB = 28;
   const innerW = W - padL - padR, innerH = H - padT - padB;
-  const t0 = new Date(list[0].date).getTime();
-  const t1 = new Date(list[list.length - 1].date).getTime() || (t0 + 1);
+  const tFirst = new Date(list[0].date).getTime();
+  const tLast = new Date(list[list.length - 1].date).getTime() || (tFirst + 1);
+  const range = Math.max(1, tLast - tFirst);
+  const windowSpan = range / zoom;
+  const t0 = tFirst + offset * range;
+  const t1 = t0 + windowSpan;
   const xFor = (iso) => {
     const t = new Date(iso).getTime();
     return padL + ((t - t0) / Math.max(1, t1 - t0)) * innerW;
   };
-  const crtVals = list.map(i => typeof i.crtUm === 'number' ? i.crtUm : null);
+  const visible = list.filter(i => {
+    const ti = new Date(i.date).getTime();
+    return ti >= t0 - 1 && ti <= t1 + 1;
+  });
+  const crtVals = visible.map(i => typeof i.crtUm === 'number' ? i.crtUm : null);
   const haveCrt = crtVals.filter(v => v != null);
   const crtMin = haveCrt.length ? Math.min(...haveCrt) : 0;
   const crtMax = haveCrt.length ? Math.max(...haveCrt) : 1;
@@ -2897,7 +3071,7 @@ function combinedTimelineSvg(list) {
     const span = Math.max(20, crtMax - crtMin);
     return padT + innerH - ((v - crtMin) / span) * innerH;
   };
-  const vaVals = list.map(i => snellenToLogMAR(i.vaSnellen));
+  const vaVals = visible.map(i => snellenToLogMAR(i.vaSnellen));
   const haveVa = vaVals.filter(v => v != null);
   const vaMin = haveVa.length ? Math.min(...haveVa) : 0;
   const vaMax = haveVa.length ? Math.max(...haveVa) : 1;
@@ -2908,7 +3082,7 @@ function combinedTimelineSvg(list) {
   };
   const crtPath = (() => {
     const pts = [];
-    list.forEach((i, idx) => {
+    visible.forEach((i, idx) => {
       const y = crtY(crtVals[idx]);
       if (y != null) pts.push(`${pts.length ? 'L' : 'M'}${xFor(i.date).toFixed(1)},${y.toFixed(1)}`);
     });
@@ -2916,48 +3090,70 @@ function combinedTimelineSvg(list) {
   })();
   const vaPath = (() => {
     const pts = [];
-    list.forEach((i, idx) => {
+    visible.forEach((i, idx) => {
       const y = vaY(vaVals[idx]);
       if (y != null) pts.push(`${pts.length ? 'L' : 'M'}${xFor(i.date).toFixed(1)},${y.toFixed(1)}`);
     });
     return pts.join(' ');
   })();
-  // Drug-switch verticals
   const switches = [];
-  for (let i = 1; i < list.length; i++) {
-    if (list[i].drug !== list[i - 1].drug) switches.push(list[i]);
+  for (let i = 1; i < visible.length; i++) {
+    if (visible[i].drug !== visible[i - 1].drug) switches.push(visible[i]);
   }
-  const dots = list.map(i => {
-    const x = xFor(i.date).toFixed(1);
-    const y = (crtY(typeof i.crtUm === 'number' ? i.crtUm : (crtMin + crtMax) / 2) ?? (padT + innerH / 2)).toFixed(1);
-    return `<circle cx="${x}" cy="${y}" r="3" fill="${drug(i.drug).color}" stroke="white" stroke-width="0.8"/>`;
+  // Draw dots on the CRT curve (when present) or the VA curve. Stagger
+  // labels above/below the dot so they don't overlap each other.
+  const dotsAndLabels = visible.map((i, idx) => {
+    const x = xFor(i.date);
+    const xs = x.toFixed(1);
+    const cy = crtY(typeof i.crtUm === 'number' ? i.crtUm : null);
+    const vy = vaY(snellenToLogMAR(i.vaSnellen));
+    const y = (cy ?? vy ?? (padT + innerH / 2));
+    const ys = y.toFixed(1);
+    let labels = '';
+    if (typeof i.crtUm === 'number' && cy != null) {
+      labels += `<text x="${xs}" y="${(cy - 5).toFixed(1)}" font-size="9" fill="var(--signal)" text-anchor="middle" font-weight="600">${i.crtUm}</text>`;
+    }
+    if (i.vaSnellen && vy != null) {
+      labels += `<text x="${xs}" y="${(vy + 11).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="middle">${escapeHtml(i.vaSnellen)}</text>`;
+    }
+    return `${labels}<circle cx="${xs}" cy="${ys}" r="3.5" fill="${drug(i.drug).color}" stroke="white" stroke-width="0.8"/>`;
   }).join('');
   const switchLines = switches.map(s => {
     const x = xFor(s.date).toFixed(1);
     return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + innerH}" stroke="var(--text3)" stroke-width="0.6" stroke-dasharray="2,2"/>`;
   }).join('');
-  const compMarks = list.filter(i => Array.isArray(i.complications) && i.complications.length).map(i => {
+  const compMarks = visible.filter(i => Array.isArray(i.complications) && i.complications.length).map(i => {
     const x = xFor(i.date).toFixed(1);
-    return `<text x="${x}" y="${padT + 8}" text-anchor="middle" font-size="9" fill="#991B1B">⚠</text>`;
+    return `<text x="${x}" y="${padT + 8}" text-anchor="middle" font-size="10" fill="#991B1B">⚠</text>`;
   }).join('');
-  const firstLabel = fmtDate(list[0].date);
-  const lastLabel = fmtDate(list[list.length - 1].date);
+  const firstLabel = visible.length ? fmtDate(visible[0].date) : '';
+  const lastLabel = visible.length ? fmtDate(visible[visible.length - 1].date) : '';
+  // Y-axis ticks (3 each side: min / mid / max)
+  const axisTicks = (mn, mx, fmt, side) => {
+    const mid = (mn + mx) / 2;
+    const x = side === 'left' ? 2 : W - 2;
+    const anc = side === 'left' ? 'start' : 'end';
+    const col = side === 'left' ? 'var(--signal)' : 'var(--text2)';
+    return [
+      `<text x="${x}" y="${padT + 8}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mx)}</text>`,
+      `<text x="${x}" y="${padT + innerH / 2 + 3}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mid)}</text>`,
+      `<text x="${x}" y="${padT + innerH}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mn)}</text>`,
+    ].join('');
+  };
   return `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;">
       <rect x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="rgba(0,0,0,0.02)" stroke="var(--separator)"/>
       ${switchLines}
       ${crtPath ? `<path d="${crtPath}" fill="none" stroke="var(--signal)" stroke-width="1.5"/>` : ''}
       ${vaPath ? `<path d="${vaPath}" fill="none" stroke="var(--text2)" stroke-width="1.2" stroke-dasharray="3,3"/>` : ''}
-      ${dots}
+      ${dotsAndLabels}
       ${compMarks}
-      <text x="${padL}" y="${H - 6}" font-size="9" fill="var(--text3)">${escapeHtml(firstLabel)}</text>
-      <text x="${W - padR}" y="${H - 6}" font-size="9" fill="var(--text3)" text-anchor="end">${escapeHtml(lastLabel)}</text>
-      ${haveCrt.length ? `
-        <text x="2" y="${padT + 8}" font-size="9" fill="var(--signal)">${Math.round(crtMax)}</text>
-        <text x="2" y="${padT + innerH}" font-size="9" fill="var(--signal)">${Math.round(crtMin)}</text>` : ''}
-      ${haveVa.length ? `
-        <text x="${W - 2}" y="${padT + 8}" font-size="9" fill="var(--text2)" text-anchor="end">${vaMin.toFixed(1)}</text>
-        <text x="${W - 2}" y="${padT + innerH}" font-size="9" fill="var(--text2)" text-anchor="end">${vaMax.toFixed(1)}</text>` : ''}
+      <text x="${padL}" y="${H - 14}" font-size="9" fill="var(--text3)">${escapeHtml(firstLabel)}</text>
+      <text x="${W - padR}" y="${H - 14}" font-size="9" fill="var(--text3)" text-anchor="end">${escapeHtml(lastLabel)}</text>
+      <text x="${padL}" y="${H - 4}" font-size="8" fill="var(--signal)">CRT (µm)</text>
+      <text x="${W - padR}" y="${H - 4}" font-size="8" fill="var(--text2)" text-anchor="end">logMAR</text>
+      ${haveCrt.length ? axisTicks(crtMin, crtMax, (v) => Math.round(v), 'left') : ''}
+      ${haveVa.length ? axisTicks(vaMin, vaMax, (v) => v.toFixed(2), 'right') : ''}
     </svg>`;
 }
 
@@ -2985,7 +3181,11 @@ async function renderCalendar() {
 
   const patients = await db.listPatients();
   const today = todayISO();
+  // byDate: ISO → array of per-eye entries (still used for dot density).
+  // byDayPatient: ISO → Map<patientId, { p, od?:{drugKey, injNumber}, os?:{drugKey, injNumber} }>
+  // The per-patient map collapses bilateral entries into a single row.
   const byDate = new Map();
+  const byDayPatient = new Map();
   for (const p of patients) {
     ensurePatientShape(p);
     const injs = await db.listInjections(p.id);
@@ -2994,10 +3194,18 @@ async function renderCalendar() {
       const s = eyeStatus(eye, injs, today);
       if (!eye.active || !s.nextDate) continue;
       const target = s.status === 'late' ? today : s.nextDate;
+      const eyeInjCount = injs.filter(i => i.eye === eyeKey).length;
+      const injNumber = eyeInjCount + 1;
+      const entry = { p, eye: eyeKey, drugKey: eye.drug, status: s.status, injNumber };
       if (!byDate.has(target)) byDate.set(target, []);
-      byDate.get(target).push({ p, eye: eyeKey, drugKey: eye.drug, status: s.status });
+      byDate.get(target).push(entry);
+      if (!byDayPatient.has(target)) byDayPatient.set(target, new Map());
+      const m = byDayPatient.get(target);
+      if (!m.has(p.id)) m.set(p.id, { p });
+      m.get(p.id)[eyeKey] = { drugKey: eye.drug, injNumber, status: s.status };
     }
   }
+  const dayPatientsArr = (iso) => Array.from((byDayPatient.get(iso) || new Map()).values());
   const dow = getLang() === 'fr' ? ['D','L','M','M','J','V','S'] : ['S','M','T','W','T','F','S'];
   const isToday = (iso) => iso === today;
   const isTodayView = state.calendarView === 'today';
@@ -3010,31 +3218,40 @@ async function renderCalendar() {
   })();
   const cells = isWeek ? weekDays : days;
 
-  const todays = byDate.get(today) || [];
+  const todaysPatients = dayPatientsArr(today);
   const doneKey = 'injectlog_clinic_done_' + today;
   const done = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
 
-  // Today's-clinic full view — only renders in 'today' mode. Same checkbox
-  // pattern as before; "done" state is per-day-localStorage so a same-day
-  // reload preserves which patients you've already injected.
+  // Combined-bilateral row for both Today's clinic and the day-detail panel.
+  // No status badge; instead one drug pill per active eye with the upcoming
+  // injection number ("OD · Eylea #5").
+  const fr = getLang() === 'fr';
+  const patientRowHtml = (entry, opts = {}) => {
+    const k = entry.p.id;
+    const isDone = opts.withDone ? done.has(k) : false;
+    const pillFor = (eyeKey) => {
+      const e = entry[eyeKey];
+      if (!e) return '';
+      return `<span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(eyeKey.toUpperCase())} · ${escapeHtml(drugLabel(e.drugKey))} <strong style="opacity:0.9; margin-left:3px;">#${e.injNumber}</strong></span>`;
+    };
+    return `
+      <div class="row" data-pid="${entry.p.id}" data-clinic="${k}">
+        ${opts.withDone ? `<button type="button" class="chip ${isDone ? 'selected' : ''}" data-toggle-clinic="${k}" style="padding:6px 10px; min-width:36px; justify-content:center;">${isDone ? '✓' : ''}</button>` : ''}
+        <div class="meta">
+          <h3 style="${isDone ? 'text-decoration:line-through; color:var(--text3);' : ''}">${escapeHtml(formatPatientName(entry.p))}${entry.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(entry.p.patientNumber)}</span>` : ''}</h3>
+          <p style="display:flex; gap:4px; flex-wrap:wrap;">${pillFor('od')}${pillFor('os')}</p>
+        </div>
+        <div class="chev">›</div>
+      </div>`;
+  };
+
+  // Today's-clinic full view — only renders in 'today' mode. Done state is
+  // keyed per-patient (not per-eye) so checking once covers bilateral.
   const todayView = `
-    <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin: 4px 0 4px;">${escapeHtml(getLang() === 'fr' ? "Clinique du jour" : "Today's clinic")} <span style="font-family:var(--sans); font-size:12px; color:var(--text3); font-weight:400;">${escapeHtml(fmtDate(today))}</span></h2>
-    <p style="font-size:12px; color:var(--text3); margin: 0 0 10px;">${todays.length ? `${escapeHtml(todays.filter(e => done.has(e.p.id + ':' + e.eye)).length + '/' + todays.length)} ${escapeHtml(getLang() === 'fr' ? 'cochés' : 'done')}` : escapeHtml(getLang() === 'fr' ? "Aucun œil prévu aujourd'hui." : 'Nothing due today.')}</p>
-    ${todays.length ? `<div class="card list">
-      ${todays.map(e => {
-        const k = e.p.id + ':' + e.eye;
-        const isDone = done.has(k);
-        return `
-          <div class="row" data-pid="${e.p.id}" data-clinic="${k}">
-            <button type="button" class="chip ${isDone ? 'selected' : ''}" data-toggle-clinic="${k}" style="padding:6px 10px; min-width:36px; justify-content:center;">${isDone ? '✓' : ''}</button>
-            <span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(e.eye.toUpperCase())} ${escapeHtml(drugLabel(e.drugKey))}</span>
-            <div class="meta">
-              <h3 style="${isDone ? 'text-decoration:line-through; color:var(--text3);' : ''}">${escapeHtml(formatPatientName(e.p))}${e.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(e.p.patientNumber)}</span>` : ''}</h3>
-              <p><span class="status-badge ${e.status}">${escapeHtml(t('status.' + e.status))}</span></p>
-            </div>
-            <div class="chev">›</div>
-          </div>`;
-      }).join('')}
+    <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin: 4px 0 4px;">${escapeHtml(fr ? "Clinique du jour" : "Today's clinic")} <span style="font-family:var(--sans); font-size:12px; color:var(--text3); font-weight:400;">${escapeHtml(fmtDate(today))}</span></h2>
+    <p style="font-size:12px; color:var(--text3); margin: 0 0 10px;">${todaysPatients.length ? `${escapeHtml(todaysPatients.filter(e => done.has(e.p.id)).length + '/' + todaysPatients.length)} ${escapeHtml(fr ? 'cochés' : 'done')}` : escapeHtml(fr ? "Aucun œil prévu aujourd'hui." : 'Nothing due today.')}</p>
+    ${todaysPatients.length ? `<div class="card list">
+      ${todaysPatients.map(entry => patientRowHtml(entry, { withDone: true })).join('')}
     </div>` : ''}`;
 
   // Shared grid (week or month).
@@ -3065,7 +3282,7 @@ async function renderCalendar() {
 
   view.innerHTML = `
     <div class="seg" style="margin: 4px 0 12px;">
-      <button id="cal-view-today" class="${isTodayView ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? "Aujourd'hui" : "Today's clinic")}${todays.length ? ` <span style="font-weight:400; opacity:0.8;">· ${todays.length}</span>` : ''}</button>
+      <button id="cal-view-today" class="${isTodayView ? 'on' : ''}">${escapeHtml(fr ? "Aujourd'hui" : "Today's clinic")}${todaysPatients.length ? ` <span style="font-weight:400; opacity:0.8;">· ${todaysPatients.length}</span>` : ''}</button>
       <button id="cal-view-week"  class="${isWeek ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Semaine' : 'Week')}</button>
       <button id="cal-view-month" class="${isMonth ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Mois' : 'Month')}</button>
     </div>
@@ -3132,30 +3349,37 @@ async function renderCalendar() {
     cell.addEventListener('mousedown', start);
     cell.addEventListener('mouseup', cancel);
     cell.addEventListener('mouseleave', cancel);
-    cell.onclick = () => { if (!longFired) showCalDay(cell.dataset.iso, byDate); };
+    cell.onclick = () => { if (!longFired) showCalDay(cell.dataset.iso, byDate, byDayPatient); };
   });
-  if (todayISO().startsWith(state.calendarMonth)) showCalDay(todayISO(), byDate);
+  if (todayISO().startsWith(state.calendarMonth)) showCalDay(todayISO(), byDate, byDayPatient);
 }
-function showCalDay(iso, byDate) {
+function showCalDay(iso, byDate, byDayPatient) {
   const wrap = document.getElementById('cal-day');
   if (!wrap) return;
-  const entries = byDate.get(iso) || [];
-  if (!entries.length) {
+  const dayMap = byDayPatient ? byDayPatient.get(iso) : null;
+  const patients = dayMap ? Array.from(dayMap.values()) : [];
+  if (!patients.length) {
     wrap.innerHTML = `<div class="card" style="text-align:center; color:var(--text3); font-size:13px;">${escapeHtml(tF('cal.day.empty', { date: fmtDate(iso) }))}</div>`;
     return;
   }
   wrap.innerHTML = `
     <h3 class="section-title">${escapeHtml(tF('cal.day.due', { date: fmtDate(iso) }))}</h3>
     <div class="card list">
-      ${entries.map(e => `
-        <div class="row" data-pid="${e.p.id}">
-          <span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(e.eye.toUpperCase())} ${escapeHtml(drugLabel(e.drugKey))}</span>
-          <div class="meta">
-            <h3>${escapeHtml(formatPatientName(e.p))}${e.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(e.p.patientNumber)}</span>` : ''}</h3>
-            <p><span class="status-badge ${e.status}">${escapeHtml(t('status.' + e.status))}</span></p>
-          </div>
-          <div class="chev">›</div>
-        </div>`).join('')}
+      ${patients.map(entry => {
+        const pillFor = (eyeKey) => {
+          const e = entry[eyeKey];
+          if (!e) return '';
+          return `<span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(eyeKey.toUpperCase())} · ${escapeHtml(drugLabel(e.drugKey))} <strong style="opacity:0.9; margin-left:3px;">#${e.injNumber}</strong></span>`;
+        };
+        return `
+          <div class="row" data-pid="${entry.p.id}">
+            <div class="meta">
+              <h3>${escapeHtml(formatPatientName(entry.p))}${entry.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(entry.p.patientNumber)}</span>` : ''}</h3>
+              <p style="display:flex; gap:4px; flex-wrap:wrap;">${pillFor('od')}${pillFor('os')}</p>
+            </div>
+            <div class="chev">›</div>
+          </div>`;
+      }).join('')}
     </div>`;
   wrap.querySelectorAll('.row[data-pid]').forEach(r => {
     r.onclick = () => go('patient', { patientId: r.dataset.pid });
