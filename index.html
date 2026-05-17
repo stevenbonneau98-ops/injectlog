@@ -1593,10 +1593,13 @@ async function renderPatients() {
         <button id="empty-add" class="btn-block" style="max-width:240px;">${escapeHtml(t('patients.add'))}</button>
         <button id="empty-import" class="btn-secondary" style="max-width:240px; margin-top:8px;">${escapeHtml(t('patients.import'))}</button>
         <input id="import-photo" type="file" accept="image/*" style="display:none;">
+        <p style="margin-top:18px; font-size:11px; color:var(--text3);">— ${getLang() === 'fr' ? 'ou' : 'or'} —</p>
+        <button id="empty-seed" class="btn-ghost" style="max-width:240px;">🧪 ${getLang() === 'fr' ? 'Charger 200 patients fictifs' : 'Load 200 demo patients'}</button>
       </div>`;
     document.getElementById('empty-add').onclick = () => promptNewPatient();
     document.getElementById('empty-import').onclick = () => document.getElementById('import-photo').click();
     document.getElementById('import-photo').onchange = (e) => handleImportSchedule(e.target.files?.[0]);
+    document.getElementById('empty-seed').onclick = () => seedDemoPatients();
     return;
   }
 
@@ -1777,11 +1780,228 @@ function showLoading(msg) {
     el = document.createElement('div');
     el.id = 'loading-overlay';
     el.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.5); z-index:9990; display:flex; align-items:center; justify-content:center;';
-    el.innerHTML = `<div style="background:#fff; padding:14px 22px; border-radius:14px; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3);">${escapeHtml(msg)}</div>`;
+    el.innerHTML = `<div id="loading-msg" style="background:#fff; padding:14px 22px; border-radius:14px; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3); text-align:center;">${escapeHtml(msg)}</div>`;
     document.body.appendChild(el);
+  } else {
+    const inner = el.querySelector('#loading-msg');
+    if (inner) inner.textContent = msg;
   }
 }
 function hideLoading() { document.getElementById('loading-overlay')?.remove(); }
+
+/* ─── demo data: 200 fake anti-VEGF patients ──────────────────────── */
+const DEMO_FIRST_NAMES = [
+  'Marie','Jean','Pierre','Robert','Louise','Claire','Monique','André','Yvon','Lucie',
+  'Suzanne','Lise','Jacques','Michel','Denise','Solange','Gérard','Gilles','Diane','Hélène',
+  'Nicole','Carole','Sylvie','Daniel','Roger','Bernard','Pauline','Madeleine','Albert','Cécile',
+  'François','Renée','Yves','Christiane','Thérèse','Jeanne','John','Mary','Robert','James',
+  'Linda','Patricia','Michael','Barbara','Susan','Margaret','David','Sarah','Richard','Helen',
+];
+const DEMO_LAST_NAMES = [
+  'Tremblay','Gagnon','Roy','Bouchard','Gauthier','Morin','Lavoie','Fortin','Gagné','Ouellet',
+  'Pelletier','Bélanger','Lévesque','Bergeron','Caron','Côté','Girard','Lefebvre','Roussel','Lapointe',
+  'Dubois','Martin','Bouchard','Lacroix','Mercier','Beaulieu','Dion','Cloutier','Boucher','Simard',
+  'Smith','Brown','Jones','Wilson','Taylor','Anderson','Thomas','Jackson','Harris','MacDonald',
+];
+
+// Simple deterministic LCG so the demo cohort is repeatable across runs.
+let _seedRng = 0xC0FFEE;
+function seedRngReset(seed) { _seedRng = seed >>> 0; }
+function seedRandom() {
+  _seedRng = (_seedRng * 1664525 + 1013904223) >>> 0;
+  return _seedRng / 0x100000000;
+}
+function seedPick(arr) { return arr[Math.floor(seedRandom() * arr.length)]; }
+function seedPickWeighted(items) {
+  const total = items.reduce((s, [, w]) => s + w, 0);
+  let r = seedRandom() * total;
+  for (const [item, w] of items) { if (r < w) return item; r -= w; }
+  return items[items.length - 1][0];
+}
+function seedInt(lo, hi) { return lo + Math.floor(seedRandom() * (hi - lo + 1)); }
+
+function _makeEye() {
+  const diagnosis = seedPickWeighted([
+    ['namd', 50], ['dme', 22], ['brvo', 9], ['crvo', 7], ['mcnv', 4], ['pcv', 3], ['rop', 1], ['other', 4],
+  ]);
+  const drug = seedPickWeighted([
+    ['eylea', 32], ['avastin', 24], ['vabysmo', 18], ['lucentis', 12], ['eylea-hd', 11], ['other', 3],
+  ]);
+  const regimen = seedPickWeighted([
+    ['tae', 60], ['fixed', 18], ['loading', 12], ['prn', 10],
+  ]);
+  let intervalWeeks;
+  if (regimen === 'loading') intervalWeeks = 4;
+  else if (regimen === 'prn') intervalWeeks = 8;
+  else if (regimen === 'fixed') intervalWeeks = seedPickWeighted([[4,5],[6,15],[8,40],[10,20],[12,20]]);
+  else intervalWeeks = seedPickWeighted([[4,10],[6,15],[8,30],[10,20],[12,15],[14,5],[16,5]]);
+  return {
+    active: true,
+    diagnosis, drug, regimen,
+    intervalWeeks,
+    loadingTarget: 3,
+    notes: '',
+  };
+}
+
+async function _seedInjectionsForEye(patientId, eyeKey, eye) {
+  const historyRoll = seedRandom();
+  let totalInj;
+  if (eye.regimen === 'loading') {
+    totalInj = seedPickWeighted([[0,10],[1,20],[2,30],[3,30],[4,10]]);
+  } else if (historyRoll < 0.30) totalInj = seedInt(1, 5);
+  else if (historyRoll < 0.70) totalInj = seedInt(6, 15);
+  else totalInj = seedInt(16, 28);
+  if (totalInj === 0) return;
+
+  const avgIntervalDays = eye.regimen === 'loading' ? 28 : (eye.intervalWeeks * 7);
+  const totalDaysBack = totalInj * avgIntervalDays - seedInt(0, avgIntervalDays / 2);
+  let currentDate = addDays(todayISO(), -totalDaysBack);
+
+  let currentDrug = eye.drug;
+  let intervalToApply = eye.intervalWeeks;
+  let currentVALogMAR = snellenToLogMAR(seedPickWeighted([
+    ['20/20',5],['20/25',8],['20/30',10],['20/40',18],['20/50',14],['20/60',12],
+    ['20/80',10],['20/100',9],['20/200',8],['20/400',3],['20/800',3],
+  ])) ?? 0.3;
+  let currentCRT = seedInt(280, 480);
+  const trajectory = seedPickWeighted([['improving',40],['stable',40],['worsening',20]]);
+  const previousDrugForSwitch = currentDrug;
+  let switchPending = false;
+
+  for (let i = 0; i < totalInj; i++) {
+    if (i > 0) {
+      if (trajectory === 'improving') {
+        currentVALogMAR -= 0.015 + seedRandom() * 0.025;
+        currentCRT -= 4 + seedRandom() * 12;
+      } else if (trajectory === 'worsening') {
+        currentVALogMAR += 0.008 + seedRandom() * 0.018;
+        currentCRT += 2 + seedRandom() * 8;
+      } else {
+        currentVALogMAR += (seedRandom() - 0.5) * 0.02;
+        currentCRT += (seedRandom() - 0.5) * 10;
+      }
+      currentVALogMAR = Math.max(0, Math.min(1.7, currentVALogMAR));
+      currentCRT = Math.max(220, Math.min(700, Math.round(currentCRT)));
+    }
+
+    // Snellen denominator from logMAR.
+    const candidates = [20, 25, 30, 40, 50, 60, 80, 100, 125, 160, 200, 250, 320, 400, 500, 800];
+    const target = Math.round(20 * Math.pow(10, currentVALogMAR));
+    const snellenDen = candidates.reduce((best, c) => Math.abs(c - target) < Math.abs(best - target) ? c : best, 20);
+    const snellenVA = `20/${snellenDen}`;
+
+    const complications = [];
+    if (seedRandom() < 0.018) complications.push(seedPick(['ioh-spike','subconj-hem']));
+    if (seedRandom() < 0.003) complications.push('endophth'); // very rare
+
+    // Drug switch only on TAE, post-loading. ~6% per injection after 5.
+    let switchReason = '';
+    if (eye.regimen === 'tae' && i >= 5 && seedRandom() < 0.06) {
+      const others = DRUGS.filter(d => d.key !== currentDrug && d.key !== 'other');
+      currentDrug = seedPick(others).key;
+      switchReason = seedPickWeighted([
+        ['durability',35],['partial',25],['no-response',15],['tachyphylaxis',10],['cost',8],['adverse',4],['patient',3],
+      ]);
+    }
+    if (eye.regimen === 'tae' && i > 0) {
+      if (trajectory === 'improving' || (trajectory === 'stable' && seedRandom() < 0.45)) {
+        intervalToApply = Math.min(16, intervalToApply + 2);
+      } else if (trajectory === 'worsening') {
+        intervalToApply = Math.max(4, intervalToApply - 2);
+      }
+    }
+
+    const inj = {
+      id: uid(),
+      _demo: true,
+      patientId,
+      date: currentDate,
+      eye: eyeKey,
+      drug: currentDrug,
+      vaSnellen: snellenVA,
+      crtUm: currentCRT,
+      iopPre: seedInt(11, 19),
+      iopPost: seedInt(13, 26),
+      complications,
+      switchReason,
+      notes: '',
+      intervalWeeksApplied: intervalToApply,
+      createdAt: Date.now(),
+    };
+    await db.saveInjection(inj);
+    currentDate = addDays(currentDate, intervalToApply * 7);
+  }
+}
+
+async function seedDemoPatients() {
+  if (!confirm('Load 200 demo patients with ~2 000 fake injections? This is reversible.')) return;
+  seedRngReset(20260517);
+  showLoading('Seeding 0 / 200 patients…');
+  try {
+    await clearDemoPatients(); // start fresh
+    for (let i = 0; i < 200; i++) {
+      const last = seedPick(DEMO_LAST_NAMES);
+      const first = seedPick(DEMO_FIRST_NAMES);
+      const name = `${last}, ${first}`;
+      const ageYears = seedInt(50, 92);
+      const dobYear = new Date().getFullYear() - ageYears;
+      const dob = `${dobYear}-${String(seedInt(1, 12)).padStart(2, '0')}-${String(seedInt(1, 28)).padStart(2, '0')}`;
+      const roll = seedRandom();
+      let odActive = false, osActive = false;
+      if (roll < 0.62) { odActive = true; osActive = true; }
+      else if (roll < 0.85) { odActive = true; }
+      else if (roll < 0.96) { osActive = true; }
+      else { odActive = true; } // tiny fallback
+      const patient = {
+        id: uid(),
+        _demo: true,
+        initials: deriveInitials(name),
+        name,
+        patientNumber: String(10000 + i),
+        dob,
+        notes: '',
+        eyes: {
+          od: odActive ? _makeEye() : emptyEye(),
+          os: osActive ? _makeEye() : emptyEye(),
+        },
+        createdAt: Date.now() - seedInt(30, 5 * 365) * 86400000,
+      };
+      await db.savePatient(patient);
+      if (odActive) await _seedInjectionsForEye(patient.id, 'od', patient.eyes.od);
+      if (osActive) await _seedInjectionsForEye(patient.id, 'os', patient.eyes.os);
+      if (i % 5 === 0 || i === 199) showLoading(`Seeding ${i + 1} / 200 patients…`);
+    }
+    hideLoading();
+    toast('200 demo patients loaded');
+    render();
+  } catch (e) {
+    hideLoading();
+    console.error(e);
+    toast('Seed failed: ' + (e?.message || 'unknown'));
+  }
+}
+
+async function clearDemoPatients() {
+  const patients = await db.listPatients();
+  const demo = patients.filter(p => p._demo);
+  for (const p of demo) await db.deletePatient(p.id);
+  return demo.length;
+}
+async function removeDemoPatients() {
+  if (!confirm('Remove every demo patient (and only those)? Real patients you added stay untouched.')) return;
+  showLoading('Removing demo patients…');
+  try {
+    const n = await clearDemoPatients();
+    hideLoading();
+    toast(`Removed ${n} demo patients`);
+    render();
+  } catch (e) {
+    hideLoading();
+    console.error(e);
+    toast('Remove failed: ' + (e?.message || 'unknown'));
+  }
+}
 
 /* ─── patient detail ──────────────────────────────────────────────── */
 async function renderPatient() {
@@ -2814,6 +3034,17 @@ async function renderSettings() {
     </div>
 
     <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(getLang() === 'fr' ? 'Données fictives' : 'Demo data')}</h3>
+      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">
+        ${escapeHtml(getLang() === 'fr'
+          ? '200 patients fictifs avec un historique réaliste (~2 000 injections, mélange de produits, schémas et trajectoires). Marqués en interne — peuvent être retirés d\'un toucher.'
+          : 'Load 200 fake patients with a realistic injection history (~2 000 injections, mixed drugs, regimens and trajectories). Internally tagged — removable in one tap.')}
+      </p>
+      <button id="s-seed-load" class="btn-block" style="margin-bottom:8px;">🧪 ${escapeHtml(getLang() === 'fr' ? 'Charger 200 patients fictifs' : 'Load 200 demo patients')}</button>
+      <button id="s-seed-clear" class="btn-secondary">${escapeHtml(getLang() === 'fr' ? 'Retirer les patients fictifs' : 'Remove demo patients')}</button>
+    </div>
+
+    <div class="card">
       <button id="s-demo" class="btn-secondary" style="margin-bottom:8px;">${escapeHtml(t('settings.demo.show'))}</button>
       <button id="s-terms" class="btn-secondary">${escapeHtml(t('settings.terms'))}</button>
     </div>`;
@@ -2835,6 +3066,8 @@ async function renderSettings() {
   });
   document.getElementById('s-demo').onclick = () => showDemoFlow(true);
   document.getElementById('s-terms').onclick = () => showTermsScreen(true);
+  document.getElementById('s-seed-load').onclick = () => seedDemoPatients();
+  document.getElementById('s-seed-clear').onclick = () => removeDemoPatients();
 }
 
 /* =====================================================================
