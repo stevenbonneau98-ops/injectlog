@@ -1,0 +1,2981 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>InjectLog</title>
+<meta name="theme-color" content="#0A6BFF">
+<link rel="manifest" href="./manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="InjectLog">
+<link rel="apple-touch-icon" href="injectlog_icon.png">
+<style>
+:root {
+  --paper: #FBFAF7;
+  --surface: #FFFFFF;
+  --mist: #EEF1F5;
+  --ink: #0F172A;
+  --slate: #94A3B8;
+
+  --bg: var(--paper);
+  --card: var(--surface);
+  --text: var(--ink);
+  --text2: #475569;
+  --text3: #94A3B8;
+  --separator: rgba(15, 23, 42, 0.08);
+
+  --signal: #0A6BFF;
+  --signal-100: rgba(10, 107, 255, 0.12);
+
+  --green: #16A34A;
+  --amber: #E5A93B;
+  --ember: #DC2626;
+
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 8px rgba(15, 23, 42, 0.04);
+
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+body { padding-bottom: var(--safe-bottom); }
+body.has-tab-bar { padding-bottom: calc(var(--safe-bottom) + 64px); }
+
+#app { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+header.bar {
+  position: sticky; top: 0; z-index: 5;
+  background: rgba(251, 250, 247, 0.92);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  padding: calc(var(--safe-top) + 12px) 4px 12px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--separator);
+  margin: 0 -16px 14px;
+  padding-left: 16px; padding-right: 16px;
+}
+.bar-title {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 22px; letter-spacing: -0.01em; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bar-title em { font-style: italic; color: var(--signal); font-weight: 500; }
+.bar .back { background: none; border: 0; color: var(--signal); font: inherit; font-weight: 500; padding: 6px 8px; margin-left: -8px; cursor: pointer; }
+.bar .back:before { content: "‹ "; }
+.bar .primary { background: none; border: 0; color: var(--signal); font: inherit; font-weight: 500; padding: 6px 8px; cursor: pointer; }
+.bar-logo { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 28px; object-fit: cover; box-shadow: 0 1px 2px rgba(10,31,68,0.08); }
+
+main#view { padding: 0 0 24px; }
+
+.tab-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--separator);
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  z-index: 8000;
+}
+.tab-bar .tab {
+  flex: 1; background: transparent; border: none;
+  padding: 8px 0 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: var(--text3); font-size: 11px; cursor: pointer;
+  position: relative;
+}
+.tab-bar .tab svg { width: 24px; height: 24px; display: block; }
+.tab-bar .tab.on { color: var(--signal); }
+.tab-bar .tab.on svg { stroke-width: 2; }
+.tab-bar .tab-badge {
+  position: absolute; top: 4px; right: calc(50% - 22px);
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--ember); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+}
+.tab-bar .tab.has-badge .tab-badge { display: flex; }
+
+.card {
+  background: var(--card); border: 1px solid var(--separator);
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  box-shadow: var(--shadow-1);
+}
+.list .row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--separator);
+  cursor: pointer;
+}
+.list .row:last-child { border-bottom: 0; }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--mist); color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-weight: 500; font-size: 14px;
+  flex: 0 0 auto;
+}
+.row .meta { flex: 1; min-width: 0; }
+.row .meta h3 { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+.row .meta p { font-size: 13px; color: var(--text3); margin: 2px 0 0; }
+.row .chev { color: var(--slate); }
+
+button.btn-block, button.btn-secondary, button.btn-ghost, button.btn-danger {
+  font: inherit; border-radius: 12px; border: 0;
+  padding: 12px 16px; font-size: 15px; font-weight: 500;
+  cursor: pointer; transition: transform 0.12s var(--ease-ios), background 0.12s;
+}
+button.btn-block { background: var(--signal); color: #fff; width: 100%; }
+button.btn-secondary { background: var(--mist); color: var(--text); width: 100%; }
+button.btn-ghost { background: transparent; color: var(--signal); }
+button.btn-danger { background: var(--ember); color: #fff; width: 100%; }
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+label.field { display: block; margin-bottom: 12px; }
+label.field .lbl {
+  display: block; font-size: 12px; color: var(--text3);
+  margin-bottom: 4px; font-weight: 500;
+  letter-spacing: 0.02em; text-transform: uppercase;
+}
+input[type=text], input[type=date], input[type=number], input[type=email],
+input[type=password],
+select, textarea {
+  width: 100%; font: inherit; color: var(--text);
+  background: var(--mist);
+  border: 1px solid transparent;
+  border-radius: 12px; padding: 12px 14px;
+  -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 0; border-color: var(--signal); background: var(--surface);
+}
+textarea { min-height: 80px; resize: vertical; }
+
+.seg { display: inline-flex; background: var(--mist); padding: 3px; border-radius: 10px; width: 100%; }
+.seg button {
+  flex: 1; background: transparent; border: 0;
+  padding: 8px 10px; border-radius: 8px;
+  font: inherit; font-size: 13px; color: var(--text2);
+  cursor: pointer;
+}
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+
+.chip { display: inline-flex; align-items: center; gap: 4px;
+  background: var(--mist); color: var(--text2);
+  padding: 6px 10px; border-radius: 999px; font-size: 12px;
+  border: 0; font: inherit; cursor: pointer;
+}
+.chip.selected { background: var(--signal); color: #fff; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.section-title {
+  font-family: var(--serif); font-size: 13px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text3); margin: 18px 4px 6px;
+}
+.empty { text-align: center; padding: 56px 16px; color: var(--text3); }
+.empty h2 { font-family: var(--serif); font-size: 20px; color: var(--text); margin: 0 0 6px; font-weight: 500; }
+.empty p { font-size: 14px; max-width: 32ch; margin: 0 auto 14px; line-height: 1.45; }
+
+.drug-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  color: #fff; letter-spacing: 0.02em;
+}
+.drug-pill::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+}
+
+.status-badge {
+  display: inline-block; padding: 3px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+}
+.status-badge.future { background: rgba(20, 184, 166, 0.12); color: #0F766E; }
+.status-badge.due    { background: rgba(229, 169, 59, 0.20); color: #8A6500; }
+.status-badge.late   { background: rgba(220, 38, 38, 0.14);  color: #991B1B; }
+.status-badge.none   { background: var(--mist); color: var(--text3); }
+
+.eye-card {
+  background: var(--card); border: 1px solid var(--separator);
+  border-radius: 14px; padding: 14px;
+  box-shadow: var(--shadow-1);
+}
+.eye-card .eye-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.eye-card .eye-label {
+  font-family: var(--serif); font-size: 15px; font-weight: 500;
+}
+.eye-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+@media (max-width: 380px) { .eye-grid { grid-template-columns: 1fr; } }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-head { font-size: 11px; color: var(--text3); text-align: center; padding: 4px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cal-cell {
+  background: var(--card); border: 1px solid var(--separator);
+  border-radius: 8px;
+  min-height: 56px; padding: 4px 6px;
+  display: flex; flex-direction: column; gap: 2px;
+  position: relative; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.cal-cell.out  { opacity: 0.32; }
+.cal-cell.today { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal-100); }
+.cal-cell .d { font-size: 12px; font-weight: 600; color: var(--text2); }
+.cal-cell .dot-row { display: flex; gap: 2px; flex-wrap: wrap; }
+.cal-cell .dot { width: 6px; height: 6px; border-radius: 50%; }
+.cal-cell .more { font-size: 9px; color: var(--text3); margin-top: auto; }
+.cal-cell.long-pressing { background: var(--signal-100); }
+
+.spark { display: block; width: 100%; height: 36px; }
+
+.oct-thumb { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--mist); flex: 0 0 auto; }
+.oct-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+#install-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 9997; display: none;
+}
+#install-backdrop.show { display: block; }
+#install-hint {
+  position: fixed; left: 16px; right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--separator);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  padding: 20px 20px 22px;
+  z-index: 9998; display: none;
+}
+#install-hint.show { display: block; }
+#install-hint h4 {
+  font-family: var(--serif); font-size: 17px; font-weight: 500;
+  margin: 0 0 8px; letter-spacing: -0.01em;
+}
+#install-hint p { font-size: 14px; color: var(--text2); margin: 0; line-height: 1.5; }
+#install-hint button {
+  margin-top: 14px; background: var(--signal); color: #fff;
+  border: 0; padding: 11px 18px; border-radius: 10px;
+  font: inherit; font-weight: 500; cursor: pointer;
+}
+
+#resume-chip {
+  background: var(--signal-100);
+  border: 1px solid rgba(10, 107, 255, 0.35);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+#resume-chip.show { display: flex; }
+#resume-chip .avatar {
+  width: 28px; height: 28px; font-size: 12px;
+  background: var(--signal); color: #fff;
+}
+#resume-chip .body { flex: 1; min-width: 0; }
+#resume-chip .label { font-size: 11px; color: var(--signal); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+#resume-chip .name { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#resume-chip .chev { color: var(--signal); font-size: 18px; flex: 0 0 auto; }
+#resume-chip .dismiss {
+  background: transparent; border: 0; color: var(--text3);
+  font-size: 18px; line-height: 1; padding: 4px 6px;
+  flex: 0 0 auto; cursor: pointer;
+}
+
+/* lock screen */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px;
+}
+.lock-screen .icon {
+  width: 96px; height: 96px;
+  border-radius: 22px;
+  box-shadow: 0 6px 24px rgba(10, 107, 255, 0.25);
+  margin-bottom: 18px;
+}
+.lock-screen h1 {
+  font-family: var(--serif); font-size: 28px; font-weight: 500; letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+.lock-screen p { color: var(--text2); text-align: center; max-width: 32ch; margin: 0 0 22px; }
+.lock-screen button {
+  background: var(--signal); color: #fff; border: 0;
+  border-radius: 12px; padding: 14px 22px; font-size: 15px; font-weight: 500;
+  cursor: pointer;
+}
+
+footer.legal {
+  text-align: center; color: var(--text3);
+  font-size: 11px; padding: 18px 16px 12px;
+}
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 88px);
+  transform: translateX(-50%) translateY(40px);
+  background: var(--ink); color: #fff;
+  padding: 10px 16px; border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  opacity: 0; transition: opacity 0.18s, transform 0.18s var(--ease-ios);
+  z-index: 9000; pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* terms / demo full-screen */
+.fs-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+}
+.fs-overlay header {
+  padding: calc(env(safe-area-inset-top) + 14px) 20px 14px;
+  border-bottom: 1px solid var(--separator);
+}
+.fs-overlay header h2 {
+  font-family: var(--serif); font-size: 20px; font-weight: 500; margin: 0;
+}
+.fs-overlay main {
+  flex: 1; overflow-y: auto;
+  padding: 18px 20px 12px;
+  line-height: 1.55;
+}
+.fs-overlay footer {
+  padding: 12px 20px calc(env(safe-area-inset-bottom) + 12px);
+  border-top: 1px solid var(--separator);
+  background: var(--card);
+}
+
+/* sparkline tooltip */
+.spark-wrap { position: relative; }
+
+/* drug-switch timeline */
+.timeline {
+  position: relative;
+  padding: 4px 0;
+}
+.timeline-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--separator);
+}
+.timeline-row:last-child { border-bottom: 0; }
+.timeline-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* OCT photo capture */
+.photo-viewer {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex; flex-direction: column;
+}
+.photo-viewer .pv-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  color: #fff;
+}
+.photo-viewer .pv-header button { background: transparent; color: #fff; border: 0; padding: 8px; font: inherit; cursor: pointer; }
+.photo-viewer .pv-body { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.photo-viewer .pv-body img { max-width: 100%; max-height: 100%; }
+</style>
+</head>
+<body>
+<div id="install-backdrop" aria-hidden="true"></div>
+<aside id="install-hint" role="dialog" aria-live="polite">
+  <h4></h4>
+  <p></p>
+  <button id="install-ok" type="button">OK</button>
+</aside>
+
+<div id="app">
+  <header class="bar">
+    <button id="back" class="back" style="display:none">Back</button>
+    <img class="bar-logo" src="injectlog_icon.png" alt="" id="bar-logo">
+    <div class="bar-title">Inject<em>Log</em></div>
+    <button id="primary" class="primary" style="display:none"></button>
+  </header>
+  <div id="resume-chip" style="display:none;"></div>
+  <main id="view"></main>
+  <footer class="legal" id="footer-credit"></footer>
+</div>
+
+<nav class="tab-bar" id="tab-bar" style="display:none;">
+  <button class="tab" data-tab="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11l9-8 9 8"/>
+      <path d="M5 10v10h14V10"/>
+    </svg>
+    <span class="tab-label" id="tl-home">Patients</span>
+    <span class="tab-badge" id="tb-home"></span>
+  </button>
+  <button class="tab" data-tab="calendar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+      <line x1="8" y1="3" x2="8" y2="7"/>
+      <line x1="16" y1="3" x2="16" y2="7"/>
+    </svg>
+    <span class="tab-label" id="tl-calendar">Calendar</span>
+  </button>
+  <button class="tab" data-tab="stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="20" x2="4" y2="12"/>
+      <line x1="10" y1="20" x2="10" y2="4"/>
+      <line x1="16" y1="20" x2="16" y2="14"/>
+      <line x1="22" y1="20" x2="2" y2="20"/>
+    </svg>
+    <span class="tab-label" id="tl-stats">Stats</span>
+  </button>
+  <button class="tab" data-tab="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9c.4.2.7.4.9.7"/>
+    </svg>
+    <span class="tab-label" id="tl-settings">Settings</span>
+  </button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* =====================================================================
+   InjectLog v0.2 — anti-VEGF injection tracker.
+   Local-only (IndexedDB) patient + injection data; optional encrypted
+   backup; optional AI schedule import (identifiers only); biometric
+   lock; Terms of Use; first-run demo; navigation back-stack; resume
+   chip; per-patient stats; recall list; capacity planner; cost ledger;
+   complications tracker.
+   =================================================================== */
+
+/* ─── reference data ──────────────────────────────────────────────── */
+const DRUGS = [
+  { key: 'avastin',  en: 'Avastin',   fr: 'Avastin',   scientific: 'bevacizumab',     color: '#6366F1' },
+  { key: 'lucentis', en: 'Lucentis',  fr: 'Lucentis',  scientific: 'ranibizumab',     color: '#14B8A6' },
+  { key: 'eylea',    en: 'Eylea',     fr: 'Eylea',     scientific: 'aflibercept',     color: '#F97316' },
+  { key: 'eylea-hd', en: 'Eylea HD',  fr: 'Eylea HD',  scientific: 'aflibercept-HD',  color: '#DC2626' },
+  { key: 'vabysmo',  en: 'Vabysmo',   fr: 'Vabysmo',   scientific: 'faricimab-svoa',  color: '#A855F7' },
+  { key: 'other',    en: 'Other',     fr: 'Autre',     scientific: '',                color: '#64748B' },
+];
+const drug = (k) => DRUGS.find(d => d.key === k) || DRUGS[DRUGS.length - 1];
+const drugLabel = (k) => { const d = drug(k); return getLang() === 'fr' ? d.fr : d.en; };
+
+const INDICATIONS = [
+  { key: 'namd',  en: 'nAMD (wet AMD)',           fr: 'DMLA néovasculaire' },
+  { key: 'dme',   en: 'Diabetic macular oedema',  fr: 'Œdème maculaire diabétique' },
+  { key: 'brvo',  en: 'BRVO macular oedema',      fr: 'OBVR œdème maculaire' },
+  { key: 'crvo',  en: 'CRVO macular oedema',      fr: 'OVCR œdème maculaire' },
+  { key: 'mcnv',  en: 'Myopic CNV',               fr: 'NVC myopique' },
+  { key: 'pcv',   en: 'Polypoidal CV',            fr: 'Vasculopathie choroïdienne polypoïdale' },
+  { key: 'rop',   en: 'ROP',                      fr: 'Rétinopathie du prématuré' },
+  { key: 'other', en: 'Other',                    fr: 'Autre' },
+];
+const indicationLabel = (k) => {
+  const it = INDICATIONS.find(x => x.key === k);
+  if (!it) return k || '';
+  return getLang() === 'fr' ? it.fr : it.en;
+};
+
+const REGIMENS = [
+  { key: 'loading', en: 'Loading',          fr: 'Charge' },
+  { key: 'tae',     en: 'Treat & Extend',   fr: 'Treat & Extend' },
+  { key: 'fixed',   en: 'Fixed interval',   fr: 'Intervalle fixe' },
+  { key: 'prn',     en: 'PRN',              fr: 'PRN' },
+];
+const regimenLabel = (k) => {
+  const r = REGIMENS.find(x => x.key === k);
+  if (!r) return k || '';
+  return getLang() === 'fr' ? r.fr : r.en;
+};
+
+const COMPLICATIONS = [
+  { key: 'ioh-spike',     en: 'IOP spike',                fr: 'Pic de PIO' },
+  { key: 'subconj-hem',   en: 'Subconjunctival heme',     fr: 'Hémorragie sous-conj.' },
+  { key: 'endophth',      en: 'Endophthalmitis',          fr: 'Endophtalmie' },
+  { key: 'rpe-tear',      en: 'RPE tear',                 fr: 'Déchirure de l\'EPR' },
+  { key: 'vh',            en: 'Vitreous heme',            fr: 'Hémorragie vitréenne' },
+  { key: 'lens-injury',   en: 'Lens injury',              fr: 'Lésion cristallinienne' },
+  { key: 'rd',            en: 'Retinal detachment',       fr: 'Décollement de rétine' },
+  { key: 'systemic-tx',   en: 'Systemic event',           fr: 'Événement systémique' },
+];
+const complicationLabel = (k) => {
+  const c = COMPLICATIONS.find(x => x.key === k);
+  if (!c) return k;
+  return getLang() === 'fr' ? c.fr : c.en;
+};
+
+const SWITCH_REASONS = [
+  { key: 'no-response',    en: 'No response',           fr: 'Pas de réponse' },
+  { key: 'partial',        en: 'Partial response',      fr: 'Réponse partielle' },
+  { key: 'tachyphylaxis',  en: 'Tachyphylaxis',         fr: 'Tachyphylaxie' },
+  { key: 'durability',     en: 'Need longer durability',fr: 'Besoin de durabilité' },
+  { key: 'cost',           en: 'Cost / coverage',       fr: 'Coût / couverture' },
+  { key: 'patient',        en: 'Patient preference',    fr: 'Préférence du patient' },
+  { key: 'adverse',        en: 'Adverse event',         fr: 'Événement indésirable' },
+  { key: 'other',          en: 'Other',                 fr: 'Autre' },
+];
+const switchReasonLabel = (k) => {
+  const r = SWITCH_REASONS.find(x => x.key === k);
+  if (!r) return k || '';
+  return getLang() === 'fr' ? r.fr : r.en;
+};
+
+const DUE_WINDOW_DAYS = 3;
+const RECALL_DEFAULT_WEEKS = 16; // any active eye with no injection in N weeks
+
+/* ─── IndexedDB ───────────────────────────────────────────────────── */
+const DB_NAME = 'injectlog-v1';
+const DB_VERSION = 2;
+let _dbPromise = null;
+function openDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('patients')) {
+        db.createObjectStore('patients', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('injections')) {
+        const s = db.createObjectStore('injections', { keyPath: 'id' });
+        s.createIndex('patientId', 'patientId', { unique: false });
+        s.createIndex('date', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+async function tx(store, mode, run) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(store, mode);
+    const s = t.objectStore(store);
+    const r = run(s);
+    t.oncomplete = () => resolve(r);
+    t.onerror = () => reject(t.error);
+  });
+}
+const db = {
+  async listPatients() {
+    return tx('patients', 'readonly', s => new Promise(res => {
+      const out = [];
+      s.openCursor().onsuccess = (e) => {
+        const c = e.target.result;
+        if (c) { out.push(c.value); c.continue(); }
+        else res(out.sort((a, b) => (b.modifiedAt || 0) - (a.modifiedAt || 0)));
+      };
+    }));
+  },
+  async getPatient(id) {
+    return tx('patients', 'readonly', s => new Promise(res => {
+      s.get(id).onsuccess = (e) => res(e.target.result);
+    }));
+  },
+  async savePatient(p) {
+    p.modifiedAt = Date.now();
+    if (!p.createdAt) p.createdAt = p.modifiedAt;
+    return tx('patients', 'readwrite', s => s.put(p));
+  },
+  async deletePatient(id) {
+    await tx('patients', 'readwrite', s => s.delete(id));
+    const injs = await db.listInjections(id);
+    await Promise.all(injs.map(i => db.deleteInjection(i.id)));
+  },
+  async listInjections(patientId) {
+    return tx('injections', 'readonly', s => new Promise(res => {
+      const out = [];
+      const idx = s.index('patientId');
+      idx.openCursor(IDBKeyRange.only(patientId)).onsuccess = (e) => {
+        const c = e.target.result;
+        if (c) { out.push(c.value); c.continue(); }
+        else res(out.sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+      };
+    }));
+  },
+  async listAllInjections() {
+    return tx('injections', 'readonly', s => new Promise(res => {
+      const out = [];
+      s.openCursor().onsuccess = (e) => {
+        const c = e.target.result;
+        if (c) { out.push(c.value); c.continue(); }
+        else res(out);
+      };
+    }));
+  },
+  async getInjection(id) {
+    return tx('injections', 'readonly', s => new Promise(res => {
+      s.get(id).onsuccess = (e) => res(e.target.result);
+    }));
+  },
+  async saveInjection(i) {
+    i.modifiedAt = Date.now();
+    if (!i.createdAt) i.createdAt = i.modifiedAt;
+    return tx('injections', 'readwrite', s => s.put(i));
+  },
+  async deleteInjection(id) {
+    return tx('injections', 'readwrite', s => s.delete(id));
+  },
+};
+
+/* ─── i18n ────────────────────────────────────────────────────────── */
+const LANG_KEY = 'injectlog_lang_v1';
+function getLang() { return localStorage.getItem(LANG_KEY) || 'en'; }
+function setLang(c) { localStorage.setItem(LANG_KEY, c); }
+
+const STRINGS = {
+  en: {
+    'tab.home': 'Patients', 'tab.calendar': 'Calendar', 'tab.stats': 'Stats', 'tab.settings': 'Settings',
+    'btn.save': 'Save', 'btn.cancel': 'Cancel', 'btn.delete': 'Delete', 'btn.back': 'Back', 'btn.close': 'Close',
+    'btn.add': 'Add', 'btn.done': 'Done', 'btn.edit': 'Edit', 'btn.next': 'Next', 'btn.agree': 'I agree', 'btn.unlock': '🔓 Unlock',
+
+    'patients.title': 'Patients',
+    'patients.empty.h': 'No patients yet',
+    'patients.empty.b': 'Add your first patient or import a daily schedule to start tracking injections.',
+    'patients.add': '+ Add patient',
+    'patients.import': '📋 Import schedule',
+    'patients.search.ph': 'Search by name, chart #, or initials…',
+    'patient.due.today': '{n} due',
+    'patient.late': '{n} late',
+
+    'patient.new': 'New patient',
+    'patient.name': 'Name',
+    'patient.name.ph': 'Last, First',
+    'patient.pn': 'Chart #',
+    'patient.dob': 'Date of birth',
+    'patient.notes': 'Notes',
+    'patient.required': 'Name required',
+    'patient.saved': 'Patient saved',
+    'patient.delete.confirm': 'Delete this patient and every injection? Cannot be undone.',
+    'patient.deleted': 'Patient deleted',
+    'patient.stats': '📊 Per-patient stats',
+
+    'eye.od': 'OD (right)',
+    'eye.os': 'OS (left)',
+    'eye.active': 'Active',
+    'eye.inactive': 'Inactive',
+    'eye.diagnosis': 'Diagnosis',
+    'eye.drug': 'Drug',
+    'eye.regimen': 'Regimen',
+    'eye.interval': 'Interval (weeks)',
+    'eye.loading.target': 'Loading dose target',
+    'eye.last': 'Last injection',
+    'eye.last.never': 'No injection yet',
+    'eye.next': 'Next due',
+    'eye.add.injection': '+ Add injection',
+    'eye.history': '{n} injection{s}',
+    'eye.activate': 'Activate',
+    'eye.notes': 'Eye notes',
+    'eye.switches': 'Drug switches',
+    'eye.va.trend': 'Vision trend',
+    'eye.crt.trend': 'CRT trend',
+    'eye.timeline': 'Treatment timeline',
+
+    'inj.new': 'New injection',
+    'inj.date': 'Date',
+    'inj.eye': 'Eye',
+    'inj.drug': 'Drug',
+    'inj.va': 'Vision (Snellen)',
+    'inj.va.ph': '20/40',
+    'inj.crt': 'CRT (µm)',
+    'inj.iop.pre': 'IOP pre',
+    'inj.iop.post': 'IOP post',
+    'inj.interval.next': 'Set next interval (weeks)',
+    'inj.complications': 'Complications',
+    'inj.switch.reason': 'Drug switch reason',
+    'inj.notes': 'Notes',
+    'inj.oct': 'OCT screenshot',
+    'inj.oct.add': '📷 Attach OCT',
+    'inj.oct.remove': 'Remove OCT',
+    'inj.saved': 'Injection saved',
+    'inj.delete.confirm': 'Delete this injection?',
+    'inj.deleted': 'Injection deleted',
+
+    'status.future': 'On schedule',
+    'status.due': 'Due',
+    'status.late': 'Late',
+    'status.none': 'Inactive',
+
+    'cal.title': 'Calendar',
+    'cal.tap.day': 'Tap a day to see the patients due. Long-press to add an injection on that day.',
+    'cal.day.empty': 'No injections due on {date}.',
+    'cal.day.due': 'Due on {date}',
+    'cal.pick.patient': 'Pick a patient',
+    'cal.quick.add': 'Quick-add on {date}',
+
+    'stats.title': 'Stats',
+    'stats.total.injections': 'Total injections',
+    'stats.total.patients': 'Total patients',
+    'stats.eyes.active': 'Active eyes',
+    'stats.drug.share': 'Drug share',
+    'stats.indication.share': 'Indication share',
+    'stats.injections.per.year': 'Inj./pt · last 12 mo',
+    'stats.mean.interval': 'Mean interval (TAE)',
+    'stats.complications.rate': 'Complications · per 1k',
+    'stats.letter.gain': 'ETDRS-letter gain at 12 mo · by indication',
+    'stats.letter.gain.body': 'Counts eyes whose Snellen at the last visit (≥ 9 mo after baseline) was {n} or more lines better than baseline.',
+    'stats.capacity': 'Capacity planner',
+    'stats.capacity.body': 'Eyes due in the next 4 weeks, by day. Flags days above target.',
+    'stats.cost': 'Cost ledger',
+    'stats.cost.body': 'Drug cost per unit × injections. Set unit costs in Settings.',
+    'stats.complications.detail': 'Complications tracker',
+    'stats.complications.body': 'Every complication chip across the whole library — useful for review.',
+    'stats.recall': 'Recall list',
+    'stats.recall.body': 'Eyes inactive for {n} weeks but never explicitly stopped.',
+    'stats.recall.weeks': 'Recall threshold (weeks)',
+
+    'pstats.title': "Per-patient stats",
+    'pstats.injections': 'Total injections',
+    'pstats.years.on.tx': 'Years on treatment',
+    'pstats.switches': 'Drug switches',
+    'pstats.longest.dry': 'Longest dry interval (weeks)',
+    'pstats.va.delta': 'VA change vs baseline (lines)',
+    'pstats.crt.delta': 'CRT change vs baseline (µm)',
+
+    'settings.title': 'Settings',
+    'settings.language': 'Language',
+    'settings.email': 'Daily digest email',
+    'settings.email.body': "If empty, the in-app 'Email today's list' button is disabled. Set a server-side digest cron later in /api/digest.js + Vercel cron.",
+    'settings.email.ph': 'you@example.com',
+    'settings.lock': 'Lock with Face ID / Touch ID',
+    'settings.lock.body': 'Require iPhone biometric (or device passcode) to open InjectLog. Uses WebAuthn; falls back to the device passcode if biometrics aren\'t available.',
+    'settings.lock.enable': 'Enable',
+    'settings.lock.disable': 'Disable',
+    'settings.backup': 'Encrypted backup',
+    'settings.backup.body': 'Export an AES-256-GCM encrypted file. Without your passphrase the data cannot be recovered.',
+    'settings.export': '⬇ Export encrypted backup',
+    'settings.import': '⬆ Import backup',
+    'settings.cost': 'Drug unit cost',
+    'settings.cost.body': 'Used by Stats → Cost ledger. Stored locally.',
+    'settings.demo.show': 'Replay welcome tour',
+    'settings.terms': 'View Terms of Use',
+    'settings.backup.never': 'No backup yet — export one now.',
+    'settings.backup.ago': 'Last backup {d}d ago.',
+
+    'lock.title': 'InjectLog',
+    'lock.subtitle': 'Locked — unlock with Face ID / Touch ID to continue.',
+    'lock.fail': 'Authentication failed. Try again.',
+    'lock.enabled': 'Lock enabled',
+    'lock.disabled': 'Lock disabled',
+    'lock.passphrase.set': 'Pick a passphrase',
+    'lock.passphrase.set.body': 'On devices without WebAuthn we fall back to a passphrase. 8+ characters.',
+
+    'home.email.btn': '📧 Email today\'s list',
+    'home.email.none': 'No patients due today.',
+    'home.email.subject': 'InjectLog · injections due {date}',
+    'home.email.no.email': 'Set your email in Settings first.',
+    'home.email.opened': 'Opened your mail app — review then send.',
+
+    'install.title': 'Install InjectLog on your iPhone',
+    'install.body': 'Tap the Share button in Safari, then choose <strong>Add to Home Screen</strong>. The app then opens full-screen and works offline.',
+    'install.ok': 'Got it',
+
+    'terms.title': 'Confidentiality & Terms of Use',
+    'terms.intro': 'InjectLog is a clinical-documentation tool for anti-VEGF follow-up. It runs entirely in your iPhone\'s browser as a PWA. Read these terms before use.',
+    'terms.s1.h': '1. What is stored',
+    'terms.s1.b': 'On this device only (IndexedDB): patient name (Last, First), chart #, date of birth, notes; per-eye diagnosis, drug, regimen, interval; injection log (date, drug, eye, Snellen VA, CRT µm, IOP pre/post, complications, drug-switch reason, notes); optional OCT-screenshot photos.',
+    'terms.s2.h': '2. AI features (only when you trigger them)',
+    'terms.s2.b': 'One feature optionally calls Anthropic\'s Claude (US-hosted): scanning a phone photo of a daily injection schedule to extract identifiers (name, initials, chart #) only. The prompt forbids extracting clinical content. Use only with consent or de-identified images.',
+    'terms.s3.h': '3. Encrypted backup',
+    'terms.s3.b': 'Export an AES-256-GCM/PBKDF2 (250 k iterations) backup with a passphrase you choose. Without that passphrase the data cannot be recovered — not even by us.',
+    'terms.s4.h': '4. Daily email digest',
+    'terms.s4.b': 'The "Email today\'s list" button opens your mail app with a prefilled message; v0.2 does not send automatically. A server-side cron is sketched in /api/digest.js for v0.3.',
+    'terms.s5.h': '5. Decision support only',
+    'terms.s5.b': 'InjectLog is a documentation and analysis tool. Stats are descriptive only and not a substitute for clinical judgement.',
+    'terms.s6.h': '6. Your responsibilities',
+    'terms.s6.b': 'Obtain appropriate patient consent before storing identifiers, protect this device with Face ID / passcode, maintain encrypted backups, and comply with the privacy law applicable to your practice (HIPAA, Quebec Law 25, PIPEDA, GDPR, etc.).',
+    'terms.s7.h': '7. No liability',
+    'terms.s7.b': 'The developer is not responsible for data loss, breach via a lost/stolen device, errors in AI-extracted text, missed notifications, or any clinical decision made using this app.',
+    'terms.confirm': 'By tapping "I agree" you confirm you have read and understood these terms.',
+
+    'demo.skip': 'Skip', 'demo.next': 'Next', 'demo.done': 'Start',
+    'demo.s1.h': 'Welcome to InjectLog',
+    'demo.s1.b': 'Track anti-VEGF injections, per eye, across visits. Short tour, about a minute.',
+    'demo.s2.h': 'One row per patient',
+    'demo.s2.b': "From Patients, tap + Add patient or 📋 Import schedule (snap a photo of the day's list — names only). Each row shows OD/OS status: green = on schedule, amber = due, red = late.",
+    'demo.s3.h': 'Two eyes, independent',
+    'demo.s3.b': "Open a patient → two eye cards. Each has its own diagnosis, drug, regimen (Loading / TAE / Fixed / PRN), interval, last + next-due date, vision and CRT trend.",
+    'demo.s4.h': 'Log an injection',
+    'demo.s4.b': "From an eye card → + Add injection. Record date, drug, Snellen VA, CRT, IOP pre/post, complications, the next interval, and optionally attach an OCT screenshot. The eye's plan auto-updates so next-due reads right.",
+    'demo.s5.h': 'Calendar, recall, stats',
+    'demo.s5.b': "Calendar tab: month grid with coloured dots per drug. Long-press a day to quick-add. Stats tab: drug share, indication share, ETDRS-letter gain, capacity planner, cost ledger, recall list of forgotten eyes.",
+    'demo.s6.h': '🔐 Privacy + backups',
+    'demo.s6.b': "Data stays on this device. Settings → enable Face ID lock and export an AES-256-encrypted backup with a passphrase. Without the passphrase the data cannot be recovered.",
+  },
+  fr: {
+    'tab.home': 'Patients', 'tab.calendar': 'Calendrier', 'tab.stats': 'Stats', 'tab.settings': 'Paramètres',
+    'btn.save': 'Enregistrer', 'btn.cancel': 'Annuler', 'btn.delete': 'Supprimer', 'btn.back': 'Retour', 'btn.close': 'Fermer',
+    'btn.add': 'Ajouter', 'btn.done': 'Terminé', 'btn.edit': 'Modifier', 'btn.next': 'Suivant', 'btn.agree': "J'accepte", 'btn.unlock': '🔓 Déverrouiller',
+
+    'patients.title': 'Patients',
+    'patients.empty.h': 'Aucun patient',
+    'patients.empty.b': 'Ajoutez un premier patient ou importez le programme du jour pour commencer.',
+    'patients.add': '+ Ajouter un patient',
+    'patients.import': "📋 Importer le programme",
+    'patients.search.ph': 'Nom, n° de dossier, ou initiales…',
+    'patient.due.today': '{n} dû',
+    'patient.late': '{n} en retard',
+
+    'patient.new': 'Nouveau patient',
+    'patient.name': 'Nom',
+    'patient.name.ph': 'Nom, Prénom',
+    'patient.pn': 'N° de dossier',
+    'patient.dob': 'Date de naissance',
+    'patient.notes': 'Notes',
+    'patient.required': 'Nom requis',
+    'patient.saved': 'Patient enregistré',
+    'patient.delete.confirm': 'Supprimer ce patient et toutes ses injections ? Irréversible.',
+    'patient.deleted': 'Patient supprimé',
+    'patient.stats': '📊 Stats du patient',
+
+    'eye.od': 'OD (droit)',
+    'eye.os': 'OS (gauche)',
+    'eye.active': 'Actif',
+    'eye.inactive': 'Inactif',
+    'eye.diagnosis': 'Diagnostic',
+    'eye.drug': 'Médicament',
+    'eye.regimen': 'Schéma',
+    'eye.interval': 'Intervalle (semaines)',
+    'eye.loading.target': 'Doses de charge à donner',
+    'eye.last': 'Dernière injection',
+    'eye.last.never': 'Aucune injection',
+    'eye.next': 'Prochaine prévue',
+    'eye.add.injection': '+ Ajouter une injection',
+    'eye.history': '{n} injection{s}',
+    'eye.activate': 'Activer',
+    'eye.notes': "Notes (œil)",
+    'eye.switches': 'Changements de produit',
+    'eye.va.trend': 'Évolution VA',
+    'eye.crt.trend': 'Évolution CRT',
+    'eye.timeline': 'Chronologie',
+
+    'inj.new': 'Nouvelle injection',
+    'inj.date': 'Date',
+    'inj.eye': 'Œil',
+    'inj.drug': 'Médicament',
+    'inj.va': 'Vision (Snellen)',
+    'inj.va.ph': '20/40',
+    'inj.crt': 'CRT (µm)',
+    'inj.iop.pre': 'PIO avant',
+    'inj.iop.post': 'PIO après',
+    'inj.interval.next': 'Prochain intervalle (semaines)',
+    'inj.complications': 'Complications',
+    'inj.switch.reason': 'Raison du changement',
+    'inj.notes': 'Notes',
+    'inj.oct': 'Capture OCT',
+    'inj.oct.add': "📷 Ajouter l'OCT",
+    'inj.oct.remove': "Retirer l'OCT",
+    'inj.saved': 'Injection enregistrée',
+    'inj.delete.confirm': 'Supprimer cette injection ?',
+    'inj.deleted': 'Injection supprimée',
+
+    'status.future': 'À jour',
+    'status.due': 'Dû',
+    'status.late': 'En retard',
+    'status.none': 'Inactif',
+
+    'cal.title': 'Calendrier',
+    'cal.tap.day': 'Touchez un jour pour voir les patients prévus. Appui long pour ajouter une injection.',
+    'cal.day.empty': 'Aucune injection prévue le {date}.',
+    'cal.day.due': 'Prévus le {date}',
+    'cal.pick.patient': 'Choisir un patient',
+    'cal.quick.add': 'Ajout rapide le {date}',
+
+    'stats.title': 'Statistiques',
+    'stats.total.injections': "Total d'injections",
+    'stats.total.patients': 'Total de patients',
+    'stats.eyes.active': 'Yeux actifs',
+    'stats.drug.share': 'Répartition des produits',
+    'stats.indication.share': 'Répartition des indications',
+    'stats.injections.per.year': 'Inj./pt · 12 derniers mois',
+    'stats.mean.interval': 'Intervalle moyen (TAE)',
+    'stats.complications.rate': 'Complications · / 1000',
+    'stats.letter.gain': 'Gain ETDRS à 12 mois · par indication',
+    'stats.letter.gain.body': 'Yeux dont la Snellen à la dernière visite (≥ 9 mois après le départ) gagne {n} lignes ou plus vs. départ.',
+    'stats.capacity': 'Capacité',
+    'stats.capacity.body': 'Yeux dus dans les 4 prochaines semaines, par jour.',
+    'stats.cost': 'Coûts',
+    'stats.cost.body': 'Coût unitaire × injections. Réglez les coûts dans Paramètres.',
+    'stats.complications.detail': 'Suivi des complications',
+    'stats.complications.body': 'Toutes les complications enregistrées — utile pour révision.',
+    'stats.recall': 'Liste de rappel',
+    'stats.recall.body': "Yeux sans injection depuis {n} semaines mais jamais explicitement arrêtés.",
+    'stats.recall.weeks': 'Seuil de rappel (semaines)',
+
+    'pstats.title': 'Stats du patient',
+    'pstats.injections': "Total d'injections",
+    'pstats.years.on.tx': 'Années de traitement',
+    'pstats.switches': 'Changements de produit',
+    'pstats.longest.dry': 'Intervalle sec le plus long (semaines)',
+    'pstats.va.delta': 'Évolution VA vs. départ (lignes)',
+    'pstats.crt.delta': 'Évolution CRT vs. départ (µm)',
+
+    'settings.title': 'Paramètres',
+    'settings.language': 'Langue',
+    'settings.email': 'Courriel pour résumé quotidien',
+    'settings.email.body': "Sans courriel, le bouton « Envoyer la liste » est désactivé. Cron serveur à câbler dans /api/digest.js + Vercel cron.",
+    'settings.email.ph': 'vous@exemple.com',
+    'settings.lock': 'Verrouiller avec Face ID / Touch ID',
+    'settings.lock.body': "Exiger Face ID, Touch ID ou code de l'appareil pour ouvrir InjectLog. Utilise WebAuthn.",
+    'settings.lock.enable': 'Activer',
+    'settings.lock.disable': 'Désactiver',
+    'settings.backup': 'Sauvegarde chiffrée',
+    'settings.backup.body': "Exporte un fichier AES-256-GCM. Sans votre phrase secrète, les données ne peuvent pas être récupérées.",
+    'settings.export': '⬇ Exporter la sauvegarde',
+    'settings.import': '⬆ Importer une sauvegarde',
+    'settings.cost': 'Coût unitaire',
+    'settings.cost.body': "Utilisé par Stats → Coûts. Stocké localement.",
+    'settings.demo.show': "Revoir l'introduction",
+    'settings.terms': "Conditions d'utilisation",
+    'settings.backup.never': "Aucune sauvegarde — exportez-en une.",
+    'settings.backup.ago': 'Dernière sauvegarde il y a {d} j.',
+
+    'lock.title': 'InjectLog',
+    'lock.subtitle': 'Verrouillé — déverrouillez avec Face ID / Touch ID.',
+    'lock.fail': "Échec d'authentification. Réessayez.",
+    'lock.enabled': 'Verrou activé',
+    'lock.disabled': 'Verrou désactivé',
+    'lock.passphrase.set': 'Choisir une phrase secrète',
+    'lock.passphrase.set.body': 'Sur les appareils sans WebAuthn, on utilise une phrase secrète. 8+ caractères.',
+
+    'home.email.btn': '📧 Envoyer la liste du jour',
+    'home.email.none': "Aucun patient dû aujourd'hui.",
+    'home.email.subject': 'InjectLog · injections prévues {date}',
+    'home.email.no.email': "Configurez votre courriel dans Paramètres d'abord.",
+    'home.email.opened': "App courriel ouverte — vérifiez puis envoyez.",
+
+    'install.title': 'Installer InjectLog sur votre iPhone',
+    'install.body': "Touchez Partager dans Safari puis <strong>Ajouter à l'écran d'accueil</strong>. L'app fonctionne hors-ligne en plein écran.",
+    'install.ok': 'Compris',
+
+    'terms.title': "Confidentialité et conditions d'utilisation",
+    'terms.intro': "InjectLog est un outil de documentation clinique pour le suivi anti-VEGF. Il s'exécute entièrement dans votre navigateur iPhone. Lisez ces conditions avant utilisation.",
+    'terms.s1.h': '1. Ce qui est enregistré',
+    'terms.s1.b': "Sur cet appareil uniquement (IndexedDB) : nom (Nom, Prénom), n° de dossier, date de naissance, notes ; par œil : diagnostic, produit, schéma, intervalle ; journal des injections (date, produit, œil, AV Snellen, CRT µm, PIO avant/après, complications, raison de changement, notes) ; captures OCT facultatives.",
+    'terms.s2.h': "2. Fonctions IA (sur action explicite)",
+    'terms.s2.b': "Une fonction appelle Anthropic Claude (hébergé aux États-Unis) : numériser une photo du programme du jour pour extraire seulement les identifiants (nom, initiales, n° dossier). La consigne interdit tout contenu clinique. À utiliser avec consentement ou images dépersonnalisées.",
+    'terms.s3.h': '3. Sauvegarde chiffrée',
+    'terms.s3.b': "Exportez une sauvegarde AES-256-GCM/PBKDF2 (250 000 itérations) avec une phrase secrète. Sans cette phrase, les données ne peuvent pas être récupérées — pas même par nous.",
+    'terms.s4.h': '4. Résumé courriel',
+    'terms.s4.b': "Le bouton « Envoyer la liste » ouvre votre app courriel pré-remplie ; v0.2 n'envoie pas automatiquement. Le cron serveur est ébauché dans /api/digest.js pour v0.3.",
+    'terms.s5.h': '5. Soutien à la décision',
+    'terms.s5.b': "InjectLog est un outil de documentation et d'analyse. Les statistiques sont descriptives et ne remplacent pas le jugement clinique.",
+    'terms.s6.h': '6. Vos responsabilités',
+    'terms.s6.b': "Obtenir le consentement approprié, protéger cet appareil (Face ID / code), maintenir des sauvegardes chiffrées et respecter la loi applicable (Loi 25, LPRPDE, HIPAA, RGPD, etc.).",
+    'terms.s7.h': '7. Aucune responsabilité',
+    'terms.s7.b': "Le développeur n'est pas responsable de la perte de données, d'une fuite via un appareil perdu/volé, d'erreurs d'extraction par IA, de notifications manquées, ni d'aucune décision clinique prise à l'aide de cette app.",
+    'terms.confirm': "En touchant « J'accepte », vous confirmez avoir lu et compris ces conditions.",
+
+    'demo.skip': 'Passer', 'demo.next': 'Suivant', 'demo.done': 'Commencer',
+    'demo.s1.h': 'Bienvenue dans InjectLog',
+    'demo.s1.b': "Suivez les injections anti-VEGF, œil par œil, à travers les visites. Court tour, environ une minute.",
+    'demo.s2.h': 'Une ligne par patient',
+    'demo.s2.b': "Depuis Patients, touchez + Ajouter ou 📋 Importer programme (photo de la liste — identifiants seuls). Chaque ligne montre l'état OD/OS : vert à jour, ambre dû, rouge en retard.",
+    'demo.s3.h': 'Deux yeux, indépendants',
+    'demo.s3.b': "Ouvrez un patient → deux cartes-œil. Chacune a son diagnostic, médicament, schéma (Charge / TAE / Fixe / PRN), intervalle, dernière + prochaine date, courbes vision et CRT.",
+    'demo.s4.h': 'Enregistrer une injection',
+    'demo.s4.b': "Depuis une carte-œil → + Ajouter une injection. Date, médicament, AV Snellen, CRT, PIO avant/après, complications, prochain intervalle, et capture OCT facultative. Le plan de l'œil se met à jour automatiquement.",
+    'demo.s5.h': 'Calendrier, rappels, stats',
+    'demo.s5.b': "Onglet Calendrier : grille mensuelle avec points colorés par produit. Appui long pour ajout rapide. Onglet Stats : répartitions, gain ETDRS, capacité, coûts, liste de rappel.",
+    'demo.s6.h': '🔐 Vie privée + sauvegardes',
+    'demo.s6.b': "Les données restent sur cet appareil. Paramètres → activez le verrou Face ID et exportez une sauvegarde chiffrée AES-256. Sans la phrase secrète, irrécupérable.",
+  },
+};
+function t(key, fallback) {
+  const lang = getLang();
+  return STRINGS[lang]?.[key] ?? STRINGS.en[key] ?? fallback ?? key;
+}
+function tF(key, vars = {}) {
+  let s = t(key);
+  if ('n' in vars) s = s.replace(/\{s\}/g, vars.n === 1 ? '' : 's');
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+  }
+  return s;
+}
+
+/* ─── helpers ─────────────────────────────────────────────────────── */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const todayISO = (ts) => {
+  const d = ts != null ? new Date(ts) : new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const addDays = (iso, days) => {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return todayISO(d.getTime());
+};
+const daysBetween = (a, b) => {
+  const ms = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00'));
+  return Math.round(ms / 86400000);
+};
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
+const fmtMonth = (yearMonth) => {
+  const [y, m] = yearMonth.split('-');
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : undefined, { year: 'numeric', month: 'long' });
+};
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const escapeAttr = (s) => escapeHtml(s);
+
+function formatPatientName(p) {
+  const raw = (p?.name || '').trim();
+  if (raw) return raw;
+  return p?.initials || '·';
+}
+function deriveInitials(name) {
+  const raw = (name || '').trim();
+  if (!raw) return '';
+  const reordered = raw.includes(',') ? raw.split(',').reverse().join(' ') : raw;
+  return reordered.split(/\s+/).map(w => (w[0] || '').toUpperCase()).join('').slice(0, 4);
+}
+
+function snellenToLogMAR(s) {
+  if (typeof s !== 'string') return null;
+  const m = s.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!m) return null;
+  const num = Number(m[1]), den = Number(m[2]);
+  if (!num || !den) return null;
+  return Math.log10(den / num);
+}
+const logMarToLines = (delta) => delta / 0.1; // 1 line ≈ 0.1 logMAR
+
+function emptyEye() {
+  return {
+    active: false,
+    diagnosis: '',
+    drug: 'eylea',
+    regimen: 'tae',
+    intervalWeeks: 4,
+    loadingTarget: 3,
+    notes: '',
+  };
+}
+function ensurePatientShape(p) {
+  if (!p.eyes) p.eyes = {};
+  if (!p.eyes.od) p.eyes.od = emptyEye();
+  if (!p.eyes.os) p.eyes.os = emptyEye();
+  return p;
+}
+
+function eyeStatus(eye, injections, todayDate) {
+  if (!eye || !eye.active) return { lastDate: null, nextDate: null, status: 'none' };
+  const today = todayDate || todayISO();
+  const eyeKey = eye._eyeKey;
+  const eyeInj = (injections || []).filter(i => i.eye === eyeKey).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const last = eyeInj[eyeInj.length - 1];
+  const lastDate = last ? last.date : null;
+  const interval = (last && last.intervalWeeksApplied) || eye.intervalWeeks || 4;
+  let nextDate = null;
+  if (eye.regimen === 'prn') nextDate = null;
+  else if (lastDate) nextDate = addDays(lastDate, interval * 7);
+  else nextDate = today;
+  let status = 'future';
+  if (nextDate) {
+    const dd = daysBetween(today, nextDate);
+    if (dd < -DUE_WINDOW_DAYS) status = 'late';
+    else if (dd <= DUE_WINDOW_DAYS) status = 'due';
+    else status = 'future';
+  }
+  const loadingTarget = eye.regimen === 'loading' ? (eye.loadingTarget || 3) : 0;
+  return {
+    lastDate, nextDate, status,
+    daysToNext: nextDate ? daysBetween(today, nextDate) : null,
+    interval,
+    loadingDone: loadingTarget ? eyeInj.length : 0,
+    loadingTarget,
+    injectionCount: eyeInj.length,
+  };
+}
+
+/* ─── settings keys ───────────────────────────────────────────────── */
+const EMAIL_KEY = 'injectlog_email_v1';
+const TERMS_KEY = 'injectlog_terms_v1';
+const DEMO_KEY  = 'injectlog_demo_v1';
+const INSTALL_DISMISS_KEY = 'injectlog_install_dismissed_v1';
+const LOCK_KEY = 'injectlog_lock_v1';                 // '1' = enabled
+const LOCK_CRED_KEY = 'injectlog_lock_cred_v1';        // WebAuthn credential id
+const LOCK_PASS_HASH_KEY = 'injectlog_lock_pass_hash_v1';  // passphrase fallback
+const LAST_BACKUP_KEY = 'injectlog_last_backup_v1';
+const RECALL_KEY = 'injectlog_recall_weeks_v1';
+const COSTS_KEY = 'injectlog_costs_v1';
+
+function getDigestEmail() { return localStorage.getItem(EMAIL_KEY) || ''; }
+function setDigestEmail(e) { localStorage.setItem(EMAIL_KEY, (e || '').trim()); }
+function lockIsEnabled() { return localStorage.getItem(LOCK_KEY) === '1'; }
+function getRecallWeeks() {
+  const v = Number(localStorage.getItem(RECALL_KEY));
+  return (isFinite(v) && v >= 4 && v <= 52) ? v : RECALL_DEFAULT_WEEKS;
+}
+function setRecallWeeks(n) {
+  const v = Math.max(4, Math.min(52, Math.round(Number(n) || RECALL_DEFAULT_WEEKS)));
+  localStorage.setItem(RECALL_KEY, String(v));
+}
+function getCosts() {
+  try { return JSON.parse(localStorage.getItem(COSTS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function setCost(drugKey, n) {
+  const c = getCosts();
+  c[drugKey] = isFinite(n) && n > 0 ? n : 0;
+  localStorage.setItem(COSTS_KEY, JSON.stringify(c));
+}
+function recordBackupNow() { localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString()); }
+function lastBackupDays() {
+  const iso = localStorage.getItem(LAST_BACKUP_KEY);
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
+/* ─── lock screen (Face ID via WebAuthn, passphrase fallback) ─────── */
+async function sha256Hex(str) {
+  const buf = new TextEncoder().encode(str);
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function enableLock() {
+  // Try WebAuthn platform authenticator first.
+  if (window.PublicKeyCredential) {
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const userId = crypto.getRandomValues(new Uint8Array(16));
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'InjectLog' },
+          user: { id: userId, name: 'user', displayName: 'InjectLog user' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000,
+        },
+      });
+      if (cred && cred.rawId) {
+        const id64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+        localStorage.setItem(LOCK_CRED_KEY, id64);
+        localStorage.setItem(LOCK_KEY, '1');
+        toast(t('lock.enabled'));
+        return true;
+      }
+    } catch (e) {
+      console.warn('WebAuthn enrol failed', e);
+    }
+  }
+  // Fallback: passphrase.
+  const pass = prompt(t('lock.passphrase.set'));
+  if (!pass || pass.length < 8) return false;
+  const h = await sha256Hex(pass);
+  localStorage.setItem(LOCK_PASS_HASH_KEY, h);
+  localStorage.setItem(LOCK_KEY, '1');
+  toast(t('lock.enabled'));
+  return true;
+}
+function disableLock() {
+  localStorage.removeItem(LOCK_KEY);
+  localStorage.removeItem(LOCK_CRED_KEY);
+  localStorage.removeItem(LOCK_PASS_HASH_KEY);
+  toast(t('lock.disabled'));
+}
+async function unlockAttempt() {
+  const credId64 = localStorage.getItem(LOCK_CRED_KEY);
+  if (credId64 && window.PublicKeyCredential) {
+    try {
+      const raw = Uint8Array.from(atob(credId64), c => c.charCodeAt(0));
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const res = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{ id: raw, type: 'public-key' }],
+          userVerification: 'required',
+          timeout: 60000,
+        },
+      });
+      if (res) return true;
+    } catch (e) {
+      console.warn('WebAuthn unlock failed', e);
+    }
+  }
+  if (localStorage.getItem(LOCK_PASS_HASH_KEY)) {
+    const pass = prompt(t('lock.subtitle'));
+    if (!pass) return false;
+    const h = await sha256Hex(pass);
+    return h === localStorage.getItem(LOCK_PASS_HASH_KEY);
+  }
+  return false;
+}
+async function showLockScreen() {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'lock-screen';
+    el.innerHTML = `
+      <img class="icon" src="injectlog_icon.png" alt="">
+      <h1>${escapeHtml(t('lock.title'))}</h1>
+      <p>${escapeHtml(t('lock.subtitle'))}</p>
+      <button id="lock-unlock" type="button">${escapeHtml(t('btn.unlock'))}</button>`;
+    document.body.appendChild(el);
+    const attempt = async () => {
+      const ok = await unlockAttempt();
+      if (ok) { el.remove(); resolve(); }
+      else toast(t('lock.fail'));
+    };
+    document.getElementById('lock-unlock').onclick = attempt;
+    // Auto-trigger after a short delay.
+    setTimeout(attempt, 250);
+  });
+}
+
+/* ─── encrypted backup (AES-256-GCM / PBKDF2 250 k) ───────────────── */
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+    km,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+function b64encode(arr) {
+  let s = '';
+  const a = arr instanceof Uint8Array ? arr : new Uint8Array(arr);
+  for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+  return btoa(s);
+}
+function b64decode(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function exportEncryptedBackup() {
+  const pass = prompt('Passphrase for this backup (keep it safe):');
+  if (!pass || pass.length < 6) { toast('Passphrase too short'); return; }
+  const [patients, injections] = await Promise.all([db.listPatients(), db.listAllInjections()]);
+  // Convert any OCT Blob to base64 so JSON can hold it.
+  const injPacked = await Promise.all(injections.map(async (i) => {
+    if (i.octPhoto instanceof Blob) {
+      const buf = await i.octPhoto.arrayBuffer();
+      return { ...i, octPhoto: { _b64: b64encode(buf), _type: i.octPhoto.type || 'image/jpeg' } };
+    }
+    return i;
+  }));
+  const payload = JSON.stringify({ patients, injections: injPacked, exportedAt: new Date().toISOString() });
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(payload)));
+  const file = {
+    format: 'injectlog-encrypted-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    algorithm: 'AES-256-GCM/PBKDF2-SHA256',
+    iterations: 250000,
+    salt: b64encode(salt),
+    iv: b64encode(iv),
+    ciphertext: b64encode(ct),
+  };
+  const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `injectlog-backup-${todayISO()}.lidcatch.json`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+  recordBackupNow();
+  toast('Encrypted backup saved');
+}
+async function importEncryptedBackup(file) {
+  if (!file) return;
+  let parsed;
+  try { parsed = JSON.parse(await file.text()); } catch { toast('Bad file'); return; }
+  if (parsed.format === 'injectlog-v1') {
+    // Plain JSON backup from v0.1 — accept.
+    if (Array.isArray(parsed.patients)) for (const p of parsed.patients) await db.savePatient(p);
+    if (Array.isArray(parsed.injections)) for (const i of parsed.injections) await db.saveInjection(i);
+    toast('Plain backup imported');
+    render();
+    return;
+  }
+  if (parsed.format !== 'injectlog-encrypted-backup') { toast('Unknown format'); return; }
+  const pass = prompt('Passphrase to decrypt this backup:');
+  if (!pass) return;
+  try {
+    const salt = b64decode(parsed.salt);
+    const iv = b64decode(parsed.iv);
+    const ct = b64decode(parsed.ciphertext);
+    const key = await deriveKey(pass, salt);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    const data = JSON.parse(new TextDecoder().decode(plain));
+    if (Array.isArray(data.patients)) {
+      for (const p of data.patients) await db.savePatient(p);
+    }
+    if (Array.isArray(data.injections)) {
+      for (const i of data.injections) {
+        if (i.octPhoto && i.octPhoto._b64) {
+          const bytes = b64decode(i.octPhoto._b64);
+          i.octPhoto = new Blob([bytes], { type: i.octPhoto._type || 'image/jpeg' });
+        }
+        await db.saveInjection(i);
+      }
+    }
+    toast('Backup decrypted and imported');
+    render();
+  } catch (e) {
+    console.error(e);
+    toast('Decryption failed — wrong passphrase?');
+  }
+}
+
+/* ─── badge + due/late count ──────────────────────────────────────── */
+async function dueLateCount() {
+  try {
+    const patients = await db.listPatients();
+    const today = todayISO();
+    let n = 0;
+    for (const p of patients) {
+      ensurePatientShape(p);
+      const injs = await db.listInjections(p.id);
+      const sOd = eyeStatus({ ...p.eyes.od, _eyeKey: 'od' }, injs, today).status;
+      const sOs = eyeStatus({ ...p.eyes.os, _eyeKey: 'os' }, injs, today).status;
+      if (sOd === 'due' || sOd === 'late' || sOs === 'due' || sOs === 'late') n++;
+    }
+    return n;
+  } catch { return 0; }
+}
+async function refreshAppBadge() {
+  if (typeof navigator === 'undefined' || typeof navigator.setAppBadge !== 'function') return;
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
+  try {
+    const n = await dueLateCount();
+    if (n > 0) await navigator.setAppBadge(n);
+    else await navigator.clearAppBadge?.();
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshAppBadge();
+});
+
+/* ─── toast ───────────────────────────────────────────────────────── */
+let _toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ─── state + navigation ──────────────────────────────────────────── */
+const state = {
+  view: 'patients',
+  patientId: null,
+  injectionId: null,
+  calendarMonth: null,
+  patientSearch: '',
+  _navStack: [],
+  _lastPatientCtx: null,
+};
+const titleEl   = document.querySelector('.bar-title');
+const backBtn   = document.getElementById('back');
+const primaryBtn= document.getElementById('primary');
+const view      = document.getElementById('view');
+
+const TAB_DEST = { home: 'patients', calendar: 'calendar', stats: 'stats', settings: 'settings' };
+const VIEW_TO_TAB = {
+  patients: 'home', patient: 'home', injection: 'home',
+  'patient-stats': 'home',
+  calendar: 'calendar',
+  stats: 'stats', recall: 'stats', capacity: 'stats', cost: 'stats', complications: 'stats', 'letter-gain': 'stats',
+  settings: 'settings',
+};
+document.querySelectorAll('#tab-bar .tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = TAB_DEST[btn.dataset.tab];
+    if (v && v !== state.view) go(v);
+  });
+});
+
+backBtn.addEventListener('click', async () => {
+  if (await goBack()) return;
+  // Fallback per-view mapping.
+  const fb = (v, p = {}) => go(v, p, { noStack: true });
+  if (state.view === 'patient') fb('patients');
+  else if (state.view === 'injection') fb('patient', { patientId: state.patientId });
+  else if (state.view === 'patient-stats') fb('patient', { patientId: state.patientId });
+  else if (state.view === 'recall' || state.view === 'capacity' || state.view === 'cost' || state.view === 'complications' || state.view === 'letter-gain') fb('stats');
+  else fb('patients');
+});
+
+async function go(v, payload = {}, opts = {}) {
+  const prev = state.view;
+  // Track patient context for the resume chip.
+  const isPatientCtx = (vw) => vw === 'patient' || vw === 'injection' || vw === 'patient-stats';
+  if (isPatientCtx(prev) && !isPatientCtx(v)) {
+    state._lastPatientCtx = { view: prev, patientId: state.patientId, injectionId: state.injectionId };
+  } else if (isPatientCtx(v)) {
+    state._lastPatientCtx = null;
+  }
+  if (!opts.noStack && prev && prev !== v) {
+    state._navStack.push({
+      view: prev, patientId: state.patientId, injectionId: state.injectionId, calendarMonth: state.calendarMonth,
+    });
+    while (state._navStack.length > 60) state._navStack.shift();
+  }
+  state.view = v;
+  Object.assign(state, payload);
+  await render();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+async function goBack() {
+  if (state._navStack.length) {
+    const snap = state._navStack.pop();
+    state.view = snap.view;
+    state.patientId = snap.patientId;
+    state.injectionId = snap.injectionId;
+    state.calendarMonth = snap.calendarMonth;
+    await render();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    return true;
+  }
+  return false;
+}
+function pruneNavStack(pred) {
+  state._navStack = state._navStack.filter(s => !pred(s));
+}
+
+async function render() {
+  primaryBtn.style.display = 'none';
+  primaryBtn.textContent = '';
+  primaryBtn.onclick = null;
+  const rootViews = ['patients', 'calendar', 'stats', 'settings'];
+  backBtn.style.display = rootViews.includes(state.view) ? 'none' : 'inline-block';
+
+  const credit = document.getElementById('footer-credit');
+  if (credit) {
+    const lu = new Date(document.lastModified);
+    const luStr = isNaN(lu.getTime()) ? '' : lu.toLocaleString(getLang() === 'fr' ? 'fr-CA' : undefined,
+      { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    credit.textContent = luStr ? (getLang() === 'fr' ? 'Mise à jour : ' : 'Last update: ') + luStr : '';
+  }
+
+  await refreshTabBar();
+  await refreshResumeChip();
+  refreshAppBadge();
+
+  if (state.view === 'patients')        return renderPatients();
+  if (state.view === 'patient')         return renderPatient();
+  if (state.view === 'injection')       return renderInjection();
+  if (state.view === 'patient-stats')   return renderPatientStats();
+  if (state.view === 'calendar')        return renderCalendar();
+  if (state.view === 'stats')           return renderStats();
+  if (state.view === 'recall')          return renderRecall();
+  if (state.view === 'capacity')        return renderCapacity();
+  if (state.view === 'cost')            return renderCost();
+  if (state.view === 'complications')   return renderComplications();
+  if (state.view === 'letter-gain')     return renderLetterGain();
+  if (state.view === 'settings')        return renderSettings();
+}
+async function refreshTabBar() {
+  const bar = document.getElementById('tab-bar');
+  if (!bar) return;
+  document.getElementById('tl-home').textContent     = t('tab.home');
+  document.getElementById('tl-calendar').textContent = t('tab.calendar');
+  document.getElementById('tl-stats').textContent    = t('tab.stats');
+  document.getElementById('tl-settings').textContent = t('tab.settings');
+  const active = VIEW_TO_TAB[state.view] || 'home';
+  bar.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === active));
+  const count = await dueLateCount();
+  const homeTab = bar.querySelector('.tab[data-tab="home"]');
+  const badge = document.getElementById('tb-home');
+  if (homeTab && badge) {
+    if (count > 0) { badge.textContent = String(count); homeTab.classList.add('has-badge'); }
+    else { homeTab.classList.remove('has-badge'); }
+  }
+  bar.style.display = '';
+  document.body.classList.add('has-tab-bar');
+}
+async function refreshResumeChip() {
+  const chip = document.getElementById('resume-chip');
+  if (!chip) return;
+  const ctx = state._lastPatientCtx;
+  const isPatientCtx = ['patient', 'injection', 'patient-stats'].includes(state.view);
+  if (!ctx || !ctx.patientId || isPatientCtx) {
+    chip.classList.remove('show'); chip.innerHTML = '';
+    return;
+  }
+  const p = await db.getPatient(ctx.patientId);
+  if (!p) { state._lastPatientCtx = null; chip.classList.remove('show'); chip.innerHTML = ''; return; }
+  const label = getLang() === 'fr' ? 'Reprendre' : 'Resume';
+  chip.innerHTML = `
+    <div class="avatar">${escapeHtml(p.initials || deriveInitials(p.name) || '·')}</div>
+    <div class="body">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="name">${escapeHtml(formatPatientName(p))}</div>
+    </div>
+    <div class="chev">›</div>
+    <button class="dismiss" aria-label="Dismiss" type="button">×</button>`;
+  chip.classList.add('show');
+  chip.onclick = (e) => {
+    if (e.target.closest('.dismiss')) return;
+    go(ctx.view || 'patient', { patientId: ctx.patientId, injectionId: ctx.injectionId });
+  };
+  chip.querySelector('.dismiss').onclick = (e) => {
+    e.stopPropagation();
+    state._lastPatientCtx = null;
+    refreshResumeChip();
+  };
+}
+
+/* =====================================================================
+   Patients home
+   =================================================================== */
+async function renderPatients() {
+  titleEl.innerHTML = `Inject<em>Log</em>`;
+  primaryBtn.style.display = 'inline-block';
+  primaryBtn.textContent = t('patients.add');
+  primaryBtn.onclick = () => promptNewPatient();
+
+  const patients = await db.listPatients();
+  const today = todayISO();
+  const enriched = [];
+  let due = 0, late = 0;
+  for (const p of patients) {
+    ensurePatientShape(p);
+    const injs = await db.listInjections(p.id);
+    const sOd = eyeStatus({ ...p.eyes.od, _eyeKey: 'od' }, injs, today);
+    const sOs = eyeStatus({ ...p.eyes.os, _eyeKey: 'os' }, injs, today);
+    if (sOd.status === 'due') due++; if (sOs.status === 'due') due++;
+    if (sOd.status === 'late') late++; if (sOs.status === 'late') late++;
+    const rank = (s) => ({ late: 0, due: 1, future: 2, none: 3 }[s] ?? 9);
+    const worst = Math.min(rank(sOd.status), rank(sOs.status));
+    enriched.push({ p, sOd, sOs, worst, injs });
+  }
+  enriched.sort((a, b) => a.worst - b.worst || (formatPatientName(a.p).localeCompare(formatPatientName(b.p))));
+
+  const q = (state.patientSearch || '').trim().toLowerCase();
+  const filtered = !q ? enriched : enriched.filter(({ p }) =>
+    ((p.name || '') + (p.patientNumber || '') + (p.initials || '')).toLowerCase().includes(q)
+  );
+
+  if (!patients.length) {
+    view.innerHTML = `
+      <div class="empty">
+        <h2>${escapeHtml(t('patients.empty.h'))}</h2>
+        <p>${escapeHtml(t('patients.empty.b'))}</p>
+        <button id="empty-add" class="btn-block" style="max-width:240px;">${escapeHtml(t('patients.add'))}</button>
+        <button id="empty-import" class="btn-secondary" style="max-width:240px; margin-top:8px;">${escapeHtml(t('patients.import'))}</button>
+        <input id="import-photo" type="file" accept="image/*" style="display:none;">
+      </div>`;
+    document.getElementById('empty-add').onclick = () => promptNewPatient();
+    document.getElementById('empty-import').onclick = () => document.getElementById('import-photo').click();
+    document.getElementById('import-photo').onchange = (e) => handleImportSchedule(e.target.files?.[0]);
+    return;
+  }
+
+  const emailBtn = (due + late) > 0 ? `
+    <button id="email-today" class="btn-secondary" style="margin-bottom:12px;">${escapeHtml(t('home.email.btn'))}</button>` : '';
+  view.innerHTML = `
+    <div style="display:flex; align-items:center; gap:8px; margin: 4px 4px 10px;">
+      ${due > 0 ? `<span class="status-badge due">${escapeHtml(tF('patient.due.today', { n: due }))}</span>` : ''}
+      ${late > 0 ? `<span class="status-badge late">${escapeHtml(tF('patient.late', { n: late }))}</span>` : ''}
+    </div>
+    <div class="btn-row" style="display:flex; gap:8px; margin-bottom:10px;">
+      <button id="import-btn" class="btn-secondary" style="flex:1;">${escapeHtml(t('patients.import'))}</button>
+      <input id="import-photo" type="file" accept="image/*" style="display:none;">
+    </div>
+    ${emailBtn}
+    <label class="field">
+      <input id="ps-q" type="search" placeholder="${escapeAttr(t('patients.search.ph'))}" value="${escapeAttr(state.patientSearch || '')}" autocapitalize="none" autocomplete="off">
+    </label>
+    <div class="card list">
+      ${filtered.map(({ p, sOd, sOs, injs }) => {
+        const badge = (s) => `<span class="status-badge ${s.status}" style="margin-right:4px;">${s.status === 'late' && s.daysToNext != null ? `${-s.daysToNext}d ` : ''}${escapeHtml(t('status.' + s.status))}</span>`;
+        const tags = [];
+        if (p.eyes.od.active) tags.push(`<span class="drug-pill" style="background:${drug(p.eyes.od.drug).color};">OD ${escapeHtml(drugLabel(p.eyes.od.drug))}</span>`);
+        if (p.eyes.os.active) tags.push(`<span class="drug-pill" style="background:${drug(p.eyes.os.drug).color};">OS ${escapeHtml(drugLabel(p.eyes.os.drug))}</span>`);
+        return `
+        <div class="row" data-pid="${p.id}">
+          <div class="avatar">${escapeHtml(p.initials || deriveInitials(p.name) || '·')}</div>
+          <div class="meta">
+            <h3>${escapeHtml(formatPatientName(p))}${p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(p.patientNumber)}</span>` : ''}</h3>
+            <p style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+              ${badge(sOd)}${badge(sOs)}
+              ${tags.join(' ')}
+              <span style="color:var(--text3);">· ${injs.length}×</span>
+            </p>
+          </div>
+          <div class="chev">›</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  document.getElementById('ps-q').addEventListener('input', (e) => {
+    state.patientSearch = e.target.value;
+    renderPatients();
+  });
+  view.querySelectorAll('.row[data-pid]').forEach(r => {
+    r.onclick = () => go('patient', { patientId: r.dataset.pid });
+  });
+  document.getElementById('import-btn').onclick = () => document.getElementById('import-photo').click();
+  document.getElementById('import-photo').onchange = (e) => handleImportSchedule(e.target.files?.[0]);
+  const eb = document.getElementById('email-today');
+  if (eb) eb.onclick = () => emailTodaysList(enriched);
+}
+
+/* ─── new patient ─────────────────────────────────────────────────── */
+function promptNewPatient(prefill = {}) {
+  view.innerHTML = `
+    <div class="card">
+      <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin: 0 0 10px;">${escapeHtml(t('patient.new'))}</h2>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.name'))}</span>
+        <input id="np-name" type="text" placeholder="${escapeAttr(t('patient.name.ph'))}" value="${escapeAttr(prefill.name || '')}" autocapitalize="words" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.pn'))}</span>
+        <input id="np-pn" type="text" value="${escapeAttr(prefill.patientNumber || '')}" autocapitalize="characters" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.dob'))}</span>
+        <input id="np-dob" type="date">
+      </label>
+      <label class="field" style="margin-bottom:0;">
+        <span class="lbl">${escapeHtml(t('patient.notes'))}</span>
+        <textarea id="np-notes"></textarea>
+      </label>
+    </div>
+    <button id="np-save" class="btn-block">${escapeHtml(t('btn.save'))}</button>`;
+  titleEl.textContent = t('patient.new');
+  primaryBtn.style.display = 'none';
+  document.getElementById('np-name').focus();
+  document.getElementById('np-save').onclick = async () => {
+    const name = document.getElementById('np-name').value.trim();
+    if (!name) { toast(t('patient.required')); return; }
+    const p = {
+      id: uid(),
+      initials: deriveInitials(name),
+      name,
+      patientNumber: document.getElementById('np-pn').value.trim(),
+      dob: document.getElementById('np-dob').value,
+      notes: document.getElementById('np-notes').value.trim(),
+      eyes: { od: emptyEye(), os: emptyEye() },
+      createdAt: Date.now(),
+    };
+    await db.savePatient(p);
+    toast(t('patient.saved'));
+    go('patient', { patientId: p.id });
+  };
+}
+
+/* ─── import schedule (AI) ────────────────────────────────────────── */
+async function handleImportSchedule(file) {
+  if (!file) return;
+  try {
+    showLoading('Reading the schedule…');
+    // Resize on-device first.
+    const blob = await processPhotoFile(file, 1400);
+    const dataUrl = await blobToDataURL(blob);
+    const resp = await fetch('/api/scan-list', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `API ${resp.status}`);
+    const parsed = Array.isArray(data.patients) ? data.patients : [];
+    hideLoading();
+    if (!parsed.length) { toast('No patients detected'); return; }
+    // Save each as a new patient (skip duplicates by chart #).
+    const existing = await db.listPatients();
+    const byPN = new Map();
+    for (const p of existing) {
+      const pn = (p.patientNumber || '').trim();
+      if (pn) byPN.set(pn.toLowerCase(), p);
+    }
+    let created = 0, skipped = 0;
+    for (const r of parsed) {
+      const pn = (r.patientNumber || '').trim();
+      if (pn && byPN.has(pn.toLowerCase())) { skipped++; continue; }
+      const p = {
+        id: uid(),
+        initials: (r.initials || deriveInitials(r.name)).toUpperCase(),
+        name: r.name || '',
+        patientNumber: r.patientNumber || '',
+        dob: '',
+        notes: '',
+        eyes: { od: emptyEye(), os: emptyEye() },
+        createdAt: Date.now(),
+      };
+      await db.savePatient(p);
+      created++;
+    }
+    toast(`Imported ${created} · skipped ${skipped}`);
+    render();
+  } catch (e) {
+    hideLoading();
+    console.error(e);
+    toast(`Schedule scan failed: ${e?.message || 'unknown'}`);
+  }
+}
+function processPhotoFile(file, maxEdge = 1600) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w0 = img.naturalWidth, h0 = img.naturalHeight;
+      const scale = Math.min(1, maxEdge / Math.max(w0, h0));
+      const w = Math.max(1, Math.round(w0 * scale));
+      const h = Math.max(1, Math.round(h0 * scale));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob(b => b ? res(b) : rej(new Error('toBlob null')), 'image/jpeg', 0.86);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode')); };
+    img.src = url;
+  });
+}
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('read'));
+    r.readAsDataURL(blob);
+  });
+}
+function showLoading(msg) {
+  let el = document.getElementById('loading-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.5); z-index:9990; display:flex; align-items:center; justify-content:center;';
+    el.innerHTML = `<div style="background:#fff; padding:14px 22px; border-radius:14px; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.3);">${escapeHtml(msg)}</div>`;
+    document.body.appendChild(el);
+  }
+}
+function hideLoading() { document.getElementById('loading-overlay')?.remove(); }
+
+/* ─── patient detail ──────────────────────────────────────────────── */
+async function renderPatient() {
+  const patient = await db.getPatient(state.patientId);
+  if (!patient) return go('patients');
+  ensurePatientShape(patient);
+  const injs = await db.listInjections(patient.id);
+  titleEl.textContent = formatPatientName(patient);
+  primaryBtn.style.display = 'none';
+
+  const eyeCardHtml = (eyeKey) => {
+    const eye = { ...patient.eyes[eyeKey], _eyeKey: eyeKey };
+    const s = eyeStatus(eye, injs);
+    const c = drug(eye.drug).color;
+    const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
+    const eyeInj = injs.filter(i => i.eye === eyeKey).slice(0, 3);
+    const spark = vaSparkSvg(injs.filter(i => i.eye === eyeKey));
+    const crtSpark = crtSparkSvg(injs.filter(i => i.eye === eyeKey));
+    return `
+      <div class="eye-card" data-eye="${eyeKey}">
+        <div class="eye-head">
+          <span class="eye-label">${escapeHtml(eyeLabel)}</span>
+          ${eye.active
+            ? `<span class="status-badge ${s.status}">${escapeHtml(t('status.' + s.status))}${s.status === 'late' && s.daysToNext != null ? ` · ${-s.daysToNext}d` : ''}${s.status === 'future' && s.daysToNext != null ? ` · ${s.daysToNext}d` : ''}</span>`
+            : `<span class="status-badge none">${escapeHtml(t('status.none'))}</span>`}
+        </div>
+        ${eye.active ? `
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <span class="drug-pill" style="background:${c};">${escapeHtml(drugLabel(eye.drug))}</span>
+            <span style="font-size:12px; color:var(--text3);">${escapeHtml(regimenLabel(eye.regimen))}${eye.regimen !== 'prn' ? ` · q${eye.intervalWeeks || 4}` : ''}</span>
+          </div>
+          <p style="font-size:13px; color:var(--text2); margin: 0 0 8px;">
+            <strong>${escapeHtml(t('eye.diagnosis'))}:</strong> ${escapeHtml(indicationLabel(eye.diagnosis) || '—')}<br>
+            <strong>${escapeHtml(t('eye.last'))}:</strong> ${s.lastDate ? escapeHtml(fmtDate(s.lastDate)) : escapeHtml(t('eye.last.never'))}<br>
+            <strong>${escapeHtml(t('eye.next'))}:</strong> ${s.nextDate ? escapeHtml(fmtDate(s.nextDate)) : '—'}
+            ${s.loadingTarget ? `<br><strong>${escapeHtml(t('eye.loading.target'))}:</strong> ${s.loadingDone}/${s.loadingTarget}` : ''}
+          </p>
+          ${spark ? `<div style="margin: 6px 0;"><div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(t('eye.va.trend'))}</div>${spark}</div>` : ''}
+          ${crtSpark ? `<div style="margin: 6px 0;"><div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(t('eye.crt.trend'))}</div>${crtSpark}</div>` : ''}
+          ${eyeInj.length ? `
+            <div style="border-top:1px solid var(--separator); padding-top:8px; margin: 8px 0;">
+              ${eyeInj.map(i => `
+                <div class="row" data-iid="${i.id}" style="padding:6px 4px;">
+                  <span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(drugLabel(i.drug))}</span>
+                  <div class="meta">
+                    <h3 style="font-size:13px;">${escapeHtml(fmtDate(i.date))}</h3>
+                    <p style="font-size:12px;">${escapeHtml((i.vaSnellen || ''))}${i.vaSnellen && i.crtUm ? ' · ' : ''}${i.crtUm ? `CRT ${i.crtUm} µm` : ''}${i.octPhoto ? ' · 📷' : ''}</p>
+                  </div>
+                  <div class="chev">›</div>
+                </div>`).join('')}
+            </div>` : ''}
+          ${drugSwitchTimelineHtml(injs.filter(i => i.eye === eyeKey))}
+          <button class="btn-block" data-action="add-injection" data-eye="${eyeKey}">${escapeHtml(t('eye.add.injection'))}</button>
+          <button class="btn-ghost" data-action="edit-eye" data-eye="${eyeKey}" style="margin-top:6px; width:100%;">${escapeHtml(t('btn.edit'))} ${escapeHtml(eyeLabel)}</button>
+        ` : `
+          <p style="font-size:13px; color:var(--text3); margin:0 0 10px;">${escapeHtml(t('eye.inactive'))}</p>
+          <button class="btn-block" data-action="edit-eye" data-eye="${eyeKey}">${escapeHtml(t('eye.activate'))}</button>
+        `}
+      </div>`;
+  };
+
+  view.innerHTML = `
+    <div class="card">
+      <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin:0 0 4px;">${escapeHtml(formatPatientName(patient))}</h2>
+      <p style="color:var(--text3); font-size:13px; margin:0;">
+        ${patient.patientNumber ? `#${escapeHtml(patient.patientNumber)}` : ''}${patient.patientNumber && patient.dob ? ' · ' : ''}${patient.dob ? (getLang() === 'fr' ? 'DDN ' : 'DOB ') + escapeHtml(fmtDate(patient.dob)) : ''}
+      </p>
+      ${patient.notes ? `<p style="font-size:13px; margin: 10px 0 0; line-height:1.45;">${escapeHtml(patient.notes)}</p>` : ''}
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="edit-patient" class="btn-ghost" style="padding:6px 8px;">${escapeHtml(t('btn.edit'))}</button>
+        <button id="pstats" class="btn-ghost" style="padding:6px 8px;">${escapeHtml(t('patient.stats'))}</button>
+      </div>
+    </div>
+    <div class="eye-grid">
+      ${eyeCardHtml('od')}
+      ${eyeCardHtml('os')}
+    </div>
+    <div style="margin-top:18px;">
+      <button id="delete-patient" class="btn-danger">${escapeHtml(t('btn.delete'))}</button>
+    </div>`;
+
+  document.getElementById('edit-patient').onclick = () => editPatientDialog(patient);
+  document.getElementById('pstats').onclick = () => go('patient-stats', { patientId: patient.id });
+  document.getElementById('delete-patient').onclick = async () => {
+    if (!confirm(t('patient.delete.confirm'))) return;
+    await db.deletePatient(patient.id);
+    pruneNavStack(s => s.patientId === patient.id);
+    toast(t('patient.deleted'));
+    if (!(await goBack())) go('patients', {}, { noStack: true });
+  };
+  view.querySelectorAll('[data-action="add-injection"]').forEach(b => {
+    b.onclick = () => go('injection', { patientId: patient.id, injectionId: null, eye: b.dataset.eye });
+  });
+  view.querySelectorAll('[data-action="edit-eye"]').forEach(b => {
+    b.onclick = () => editEyeDialog(patient, b.dataset.eye);
+  });
+  view.querySelectorAll('.row[data-iid]').forEach(r => {
+    r.onclick = () => go('injection', { patientId: patient.id, injectionId: r.dataset.iid });
+  });
+}
+
+function vaSparkSvg(eyeInjections) {
+  const series = eyeInjections
+    .slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .map(i => ({ date: i.date, v: snellenToLogMAR(i.vaSnellen) }))
+    .filter(p => p.v != null);
+  if (series.length < 2) return '';
+  return sparklineSvg(series.map(p => p.v), { invertY: true, color: 'var(--signal)' });
+}
+function crtSparkSvg(eyeInjections) {
+  const series = eyeInjections
+    .slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .map(i => ({ date: i.date, v: typeof i.crtUm === 'number' ? i.crtUm : null }))
+    .filter(p => p.v != null);
+  if (series.length < 2) return '';
+  return sparklineSvg(series.map(p => p.v), { invertY: false, color: '#A855F7' });
+}
+function sparklineSvg(values, opts = {}) {
+  if (!values || values.length < 2) return '';
+  const w = 280, h = 36, pad = 4;
+  let lo = Math.min(...values), hi = Math.max(...values);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const yScale = (v) => {
+    const norm = (v - lo) / (hi - lo);
+    const yN = opts.invertY ? norm : 1 - norm;
+    return pad + yN * (h - 2 * pad);
+  };
+  const step = (w - 2 * pad) / (values.length - 1);
+  const points = values.map((v, i) => `${(pad + i * step).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
+  const last = values[values.length - 1];
+  const first = values[0];
+  const trendUp = last > first;
+  const direction = opts.invertY ? (trendUp ? 'down' : 'up') : (trendUp ? 'up' : 'down');
+  const trendColor = direction === 'up' ? 'var(--green)' : 'var(--ember)';
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${points}" fill="none" stroke="${opts.color || trendColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${(pad + (values.length - 1) * step).toFixed(1)}" cy="${yScale(last).toFixed(1)}" r="3" fill="${opts.color || trendColor}"/>
+  </svg>`;
+}
+function drugSwitchTimelineHtml(eyeInjections) {
+  const sorted = eyeInjections.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const switches = [];
+  let lastDrug = null;
+  for (const i of sorted) {
+    if (lastDrug && i.drug !== lastDrug) {
+      switches.push({ from: lastDrug, to: i.drug, date: i.date, reason: i.switchReason });
+    }
+    lastDrug = i.drug;
+  }
+  if (!switches.length) return '';
+  return `
+    <div style="border-top:1px solid var(--separator); padding-top:8px; margin-top:8px;">
+      <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">${escapeHtml(t('eye.switches'))}</div>
+      ${switches.map(s => `
+        <div style="display:flex; gap:6px; align-items:center; font-size:12px; padding:3px 0;">
+          <span class="drug-pill" style="background:${drug(s.from).color};">${escapeHtml(drugLabel(s.from))}</span>
+          <span>→</span>
+          <span class="drug-pill" style="background:${drug(s.to).color};">${escapeHtml(drugLabel(s.to))}</span>
+          <span style="color:var(--text3);">${escapeHtml(fmtDate(s.date))}${s.reason ? ' · ' + escapeHtml(switchReasonLabel(s.reason)) : ''}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function editPatientDialog(patient) {
+  view.innerHTML = `
+    <div class="card">
+      <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin: 0 0 10px;">${escapeHtml(t('patient.new'))}</h2>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.name'))}</span>
+        <input id="np-name" type="text" placeholder="${escapeAttr(t('patient.name.ph'))}" value="${escapeAttr(patient.name || '')}" autocapitalize="words">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.pn'))}</span>
+        <input id="np-pn" type="text" value="${escapeAttr(patient.patientNumber || '')}" autocapitalize="characters">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('patient.dob'))}</span>
+        <input id="np-dob" type="date" value="${patient.dob || ''}">
+      </label>
+      <label class="field" style="margin-bottom:0;">
+        <span class="lbl">${escapeHtml(t('patient.notes'))}</span>
+        <textarea id="np-notes">${escapeHtml(patient.notes || '')}</textarea>
+      </label>
+    </div>
+    <button id="np-save" class="btn-block">${escapeHtml(t('btn.save'))}</button>`;
+  document.getElementById('np-save').onclick = async () => {
+    const name = document.getElementById('np-name').value.trim();
+    if (!name) { toast(t('patient.required')); return; }
+    patient.name = name;
+    patient.initials = deriveInitials(name);
+    patient.patientNumber = document.getElementById('np-pn').value.trim();
+    patient.dob = document.getElementById('np-dob').value;
+    patient.notes = document.getElementById('np-notes').value.trim();
+    await db.savePatient(patient);
+    toast(t('patient.saved'));
+    go('patient', { patientId: patient.id });
+  };
+}
+function editEyeDialog(patient, eyeKey) {
+  const eye = patient.eyes[eyeKey] || emptyEye();
+  view.innerHTML = `
+    <div class="card">
+      <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin: 0 0 10px;">${escapeHtml(eyeKey === 'od' ? t('eye.od') : t('eye.os'))}</h2>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('eye.active'))}</span>
+        <div class="seg" id="eye-active">
+          <button data-v="yes" class="${eye.active ? 'on' : ''}">${escapeHtml(t('eye.active'))}</button>
+          <button data-v="no"  class="${!eye.active ? 'on' : ''}">${escapeHtml(t('eye.inactive'))}</button>
+        </div>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('eye.diagnosis'))}</span>
+        <select id="eye-dx">
+          <option value="">—</option>
+          ${INDICATIONS.map(i => `<option value="${i.key}" ${eye.diagnosis === i.key ? 'selected' : ''}>${escapeHtml(getLang() === 'fr' ? i.fr : i.en)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('eye.drug'))}</span>
+        <select id="eye-drug">
+          ${DRUGS.map(d => `<option value="${d.key}" ${eye.drug === d.key ? 'selected' : ''}>${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}${d.scientific ? ' (' + d.scientific + ')' : ''}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('eye.regimen'))}</span>
+        <select id="eye-reg">
+          ${REGIMENS.map(r => `<option value="${r.key}" ${eye.regimen === r.key ? 'selected' : ''}>${escapeHtml(getLang() === 'fr' ? r.fr : r.en)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('eye.interval'))}</span>
+        <input id="eye-int" type="number" min="1" max="24" step="1" value="${eye.intervalWeeks || 4}">
+      </label>
+      <label class="field" style="margin-bottom:0;">
+        <span class="lbl">${escapeHtml(t('eye.notes'))}</span>
+        <textarea id="eye-notes">${escapeHtml(eye.notes || '')}</textarea>
+      </label>
+    </div>
+    <button id="eye-save" class="btn-block">${escapeHtml(t('btn.save'))}</button>`;
+  let active = !!eye.active;
+  view.querySelectorAll('#eye-active button').forEach(b => {
+    b.onclick = () => {
+      active = b.dataset.v === 'yes';
+      view.querySelectorAll('#eye-active button').forEach(x => x.classList.toggle('on', x === b));
+    };
+  });
+  document.getElementById('eye-save').onclick = async () => {
+    const cur = await db.getPatient(patient.id);
+    ensurePatientShape(cur);
+    cur.eyes[eyeKey] = {
+      active,
+      diagnosis: document.getElementById('eye-dx').value,
+      drug: document.getElementById('eye-drug').value,
+      regimen: document.getElementById('eye-reg').value,
+      intervalWeeks: Math.max(1, Math.min(24, Number(document.getElementById('eye-int').value) || 4)),
+      loadingTarget: eye.loadingTarget || 3,
+      notes: document.getElementById('eye-notes').value.trim(),
+    };
+    await db.savePatient(cur);
+    toast(t('patient.saved'));
+    go('patient', { patientId: patient.id });
+  };
+}
+
+/* ─── injection editor (with OCT screenshot + switch reason) ──────── */
+async function renderInjection() {
+  const patient = await db.getPatient(state.patientId);
+  if (!patient) return go('patients');
+  ensurePatientShape(patient);
+  let inj;
+  if (state.injectionId) {
+    inj = await db.getInjection(state.injectionId);
+    if (!inj) return go('patient', { patientId: patient.id });
+  } else {
+    const lastForEye = (await db.listInjections(patient.id)).find(i => i.eye === (state.eye || 'od'));
+    const eyeKey = state.eye || 'od';
+    const eyePlan = patient.eyes[eyeKey] || emptyEye();
+    inj = {
+      id: uid(),
+      patientId: patient.id,
+      date: todayISO(),
+      eye: eyeKey,
+      drug: eyePlan.drug || 'eylea',
+      vaSnellen: '',
+      crtUm: null,
+      iopPre: null,
+      iopPost: null,
+      complications: [],
+      switchReason: '',
+      notes: '',
+      intervalWeeksApplied: (lastForEye?.intervalWeeksApplied) || eyePlan.intervalWeeks || 4,
+      octPhoto: null,
+    };
+  }
+  titleEl.textContent = t('inj.new');
+
+  const octThumb = inj.octPhoto instanceof Blob ?
+    `<div class="oct-thumb"><img src="${URL.createObjectURL(inj.octPhoto)}" alt=""></div>` : '';
+
+  view.innerHTML = `
+    <div class="card">
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.date'))}</span>
+        <input id="i-date" type="date" value="${inj.date}" max="${todayISO()}">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.eye'))}</span>
+        <div class="seg" id="i-eye">
+          <button data-v="od" class="${inj.eye === 'od' ? 'on' : ''}">${escapeHtml(t('eye.od'))}</button>
+          <button data-v="os" class="${inj.eye === 'os' ? 'on' : ''}">${escapeHtml(t('eye.os'))}</button>
+        </div>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.drug'))}</span>
+        <select id="i-drug">
+          ${DRUGS.map(d => `<option value="${d.key}" ${inj.drug === d.key ? 'selected' : ''}>${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field" id="switch-wrap" style="display:none;">
+        <span class="lbl">${escapeHtml(t('inj.switch.reason'))}</span>
+        <select id="i-switch">
+          <option value="">—</option>
+          ${SWITCH_REASONS.map(r => `<option value="${r.key}" ${inj.switchReason === r.key ? 'selected' : ''}>${escapeHtml(switchReasonLabel(r.key))}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.va'))}</span>
+        <input id="i-va" type="text" placeholder="${escapeAttr(t('inj.va.ph'))}" value="${escapeAttr(inj.vaSnellen || '')}" autocapitalize="none">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.crt'))}</span>
+        <input id="i-crt" type="number" min="100" max="900" inputmode="numeric" value="${inj.crtUm ?? ''}">
+      </label>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <label class="field">
+          <span class="lbl">${escapeHtml(t('inj.iop.pre'))}</span>
+          <input id="i-iop-pre" type="number" min="1" max="60" inputmode="numeric" value="${inj.iopPre ?? ''}">
+        </label>
+        <label class="field">
+          <span class="lbl">${escapeHtml(t('inj.iop.post'))}</span>
+          <input id="i-iop-post" type="number" min="1" max="60" inputmode="numeric" value="${inj.iopPost ?? ''}">
+        </label>
+      </div>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.interval.next'))}</span>
+        <input id="i-int" type="number" min="1" max="24" inputmode="numeric" value="${inj.intervalWeeksApplied || 4}">
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.complications'))}</span>
+        <div class="chip-grid" id="i-comp">
+          ${COMPLICATIONS.map(c => `<button type="button" class="chip ${(inj.complications || []).includes(c.key) ? 'selected' : ''}" data-k="${c.key}">${escapeHtml(complicationLabel(c.key))}</button>`).join('')}
+        </div>
+      </label>
+      <label class="field">
+        <span class="lbl">${escapeHtml(t('inj.oct'))}</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div id="i-oct-thumb">${octThumb}</div>
+          <button id="i-oct-add" type="button" class="btn-secondary" style="flex:1;">${escapeHtml(inj.octPhoto ? t('inj.oct.remove') : t('inj.oct.add'))}</button>
+          <input id="i-oct-input" type="file" accept="image/*" style="display:none;">
+        </div>
+      </label>
+      <label class="field" style="margin-bottom:0;">
+        <span class="lbl">${escapeHtml(t('inj.notes'))}</span>
+        <textarea id="i-notes">${escapeHtml(inj.notes || '')}</textarea>
+      </label>
+    </div>
+    <button id="i-save" class="btn-block">${escapeHtml(t('btn.save'))}</button>
+    ${state.injectionId ? `<button id="i-delete" class="btn-danger" style="margin-top:10px;">${escapeHtml(t('btn.delete'))}</button>` : ''}`;
+
+  // Show switch-reason field whenever the chosen drug differs from the
+  // patient's current plan for that eye OR the previous injection's drug.
+  const drugSelect = document.getElementById('i-drug');
+  const switchWrap = document.getElementById('switch-wrap');
+  const previousInjs = await db.listInjections(patient.id);
+  const prevForEye = previousInjs.find(i => i.eye === inj.eye && i.id !== inj.id);
+  const checkSwitch = () => {
+    const cur = drugSelect.value;
+    const ref = prevForEye?.drug || patient.eyes[inj.eye].drug;
+    switchWrap.style.display = (ref && cur !== ref) ? '' : 'none';
+  };
+  drugSelect.addEventListener('change', () => {
+    inj.eye = view.querySelector('#i-eye button.on')?.dataset.v || 'od';
+    checkSwitch();
+  });
+  checkSwitch();
+
+  view.querySelectorAll('#i-eye button').forEach(b => {
+    b.onclick = () => {
+      view.querySelectorAll('#i-eye button').forEach(x => x.classList.toggle('on', x === b));
+      checkSwitch();
+    };
+  });
+  view.querySelectorAll('#i-comp .chip').forEach(c => {
+    c.onclick = () => c.classList.toggle('selected');
+  });
+  const octBtn = document.getElementById('i-oct-add');
+  const octInput = document.getElementById('i-oct-input');
+  octBtn.onclick = () => {
+    if (inj.octPhoto) {
+      inj.octPhoto = null;
+      document.getElementById('i-oct-thumb').innerHTML = '';
+      octBtn.textContent = t('inj.oct.add');
+    } else {
+      octInput.click();
+    }
+  };
+  octInput.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    inj.octPhoto = await processPhotoFile(file, 1600);
+    document.getElementById('i-oct-thumb').innerHTML = `<div class="oct-thumb"><img src="${URL.createObjectURL(inj.octPhoto)}" alt=""></div>`;
+    octBtn.textContent = t('inj.oct.remove');
+  };
+  document.getElementById('i-save').onclick = async () => {
+    inj.date = document.getElementById('i-date').value || todayISO();
+    inj.eye = view.querySelector('#i-eye button.on')?.dataset.v || 'od';
+    inj.drug = document.getElementById('i-drug').value;
+    inj.vaSnellen = document.getElementById('i-va').value.trim();
+    const crt = Number(document.getElementById('i-crt').value);
+    inj.crtUm = isFinite(crt) && crt > 0 ? crt : null;
+    const ip = Number(document.getElementById('i-iop-pre').value);
+    inj.iopPre = isFinite(ip) && ip > 0 ? ip : null;
+    const ipp = Number(document.getElementById('i-iop-post').value);
+    inj.iopPost = isFinite(ipp) && ipp > 0 ? ipp : null;
+    const iv = Number(document.getElementById('i-int').value);
+    inj.intervalWeeksApplied = (isFinite(iv) && iv >= 1 && iv <= 24) ? iv : 4;
+    inj.complications = Array.from(view.querySelectorAll('#i-comp .chip.selected')).map(c => c.dataset.k);
+    inj.switchReason = document.getElementById('i-switch')?.value || '';
+    inj.notes = document.getElementById('i-notes').value.trim();
+    await db.saveInjection(inj);
+    const cur = await db.getPatient(inj.patientId);
+    ensurePatientShape(cur);
+    cur.eyes[inj.eye].intervalWeeks = inj.intervalWeeksApplied;
+    if (!cur.eyes[inj.eye].active) cur.eyes[inj.eye].active = true;
+    cur.eyes[inj.eye].drug = inj.drug;
+    await db.savePatient(cur);
+    toast(t('inj.saved'));
+    if (!(await goBack())) go('patient', { patientId: inj.patientId });
+  };
+  const delBtn = document.getElementById('i-delete');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm(t('inj.delete.confirm'))) return;
+    await db.deleteInjection(inj.id);
+    pruneNavStack(s => s.injectionId === inj.id);
+    toast(t('inj.deleted'));
+    if (!(await goBack())) go('patient', { patientId: inj.patientId });
+  };
+}
+
+/* =====================================================================
+   Per-patient stats
+   =================================================================== */
+async function renderPatientStats() {
+  const patient = await db.getPatient(state.patientId);
+  if (!patient) return go('patients');
+  const injs = await db.listInjections(patient.id);
+  titleEl.textContent = t('pstats.title');
+
+  const eyeStats = (eyeKey) => {
+    const list = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!list.length) return { count: 0 };
+    const first = list[0], last = list[list.length - 1];
+    const years = first.date ? daysBetween(first.date, last.date) / 365 : 0;
+    const switches = [];
+    let lastDrug = null;
+    for (const i of list) { if (lastDrug && i.drug !== lastDrug) switches.push(i); lastDrug = i.drug; }
+    // Longest dry interval = longest gap between consecutive injections
+    let longest = 0;
+    for (let i = 1; i < list.length; i++) {
+      const gap = daysBetween(list[i - 1].date, list[i].date);
+      if (gap > longest) longest = gap;
+    }
+    const baselineVA = snellenToLogMAR(list.find(i => i.vaSnellen)?.vaSnellen);
+    const latestVA = snellenToLogMAR([...list].reverse().find(i => i.vaSnellen)?.vaSnellen);
+    const vaLines = (baselineVA != null && latestVA != null) ? logMarToLines(baselineVA - latestVA).toFixed(1) : null;
+    const baselineCRT = list.find(i => typeof i.crtUm === 'number')?.crtUm;
+    const latestCRT = [...list].reverse().find(i => typeof i.crtUm === 'number')?.crtUm;
+    const crtDelta = (baselineCRT && latestCRT) ? (latestCRT - baselineCRT) : null;
+    return {
+      count: list.length,
+      years: years.toFixed(1),
+      switches: switches.length,
+      longestWeeks: (longest / 7).toFixed(1),
+      vaLines, crtDelta,
+    };
+  };
+
+  const od = eyeStats('od');
+  const os = eyeStats('os');
+  const card = (eyeKey, s) => `
+    <div class="card" style="margin-bottom:10px;">
+      <h3 style="font-family:var(--serif); margin:0 0 8px; font-size:16px;">${escapeHtml(eyeKey === 'od' ? t('eye.od') : t('eye.os'))}</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px;">
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.injections'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.count || 0}</div></div>
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.years.on.tx'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.years ?? '0'}</div></div>
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.switches'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.switches ?? 0}</div></div>
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.longest.dry'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.longestWeeks ?? '—'}</div></div>
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.va.delta'))}</div><div style="font-family:var(--serif); font-size:22px; color:${s.vaLines > 0 ? 'var(--green)' : (s.vaLines < 0 ? 'var(--ember)' : 'var(--text)')}">${s.vaLines != null ? (s.vaLines > 0 ? '+' : '') + s.vaLines : '—'}</div></div>
+        <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.crt.delta'))}</div><div style="font-family:var(--serif); font-size:22px; color:${s.crtDelta < 0 ? 'var(--green)' : (s.crtDelta > 0 ? 'var(--ember)' : 'var(--text)')}">${s.crtDelta != null ? (s.crtDelta > 0 ? '+' : '') + s.crtDelta + ' µm' : '—'}</div></div>
+      </div>
+    </div>`;
+  view.innerHTML = `
+    <h3 class="section-title">${escapeHtml(formatPatientName(patient))}</h3>
+    ${card('od', od)}
+    ${card('os', os)}`;
+}
+
+/* =====================================================================
+   Calendar — with long-press quick-add
+   =================================================================== */
+async function renderCalendar() {
+  titleEl.textContent = t('cal.title');
+  primaryBtn.style.display = 'none';
+
+  const now = new Date();
+  if (!state.calendarMonth) {
+    state.calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  const [y, m] = state.calendarMonth.split('-').map(Number);
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 0);
+  const gridStart = new Date(monthStart); gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  const gridEnd = new Date(monthEnd);     gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
+  const days = [];
+  for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) days.push(todayISO(d.getTime()));
+
+  const patients = await db.listPatients();
+  const today = todayISO();
+  const byDate = new Map();
+  for (const p of patients) {
+    ensurePatientShape(p);
+    const injs = await db.listInjections(p.id);
+    for (const eyeKey of ['od', 'os']) {
+      const eye = { ...p.eyes[eyeKey], _eyeKey: eyeKey };
+      const s = eyeStatus(eye, injs, today);
+      if (!eye.active || !s.nextDate) continue;
+      const target = s.status === 'late' ? today : s.nextDate;
+      if (!byDate.has(target)) byDate.set(target, []);
+      byDate.get(target).push({ p, eye: eyeKey, drugKey: eye.drug, status: s.status });
+    }
+  }
+  const dow = getLang() === 'fr' ? ['D','L','M','M','J','V','S'] : ['S','M','T','W','T','F','S'];
+  const isToday = (iso) => iso === today;
+
+  view.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <button id="cal-prev" class="btn-ghost" style="padding:6px 12px;">‹</button>
+      <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin:0; text-transform:capitalize;">${escapeHtml(fmtMonth(state.calendarMonth))}</h2>
+      <button id="cal-next" class="btn-ghost" style="padding:6px 12px;">›</button>
+    </div>
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 10px;">${escapeHtml(t('cal.tap.day'))}</p>
+    <div class="cal-grid">
+      ${dow.map(d => `<div class="cal-head">${d}</div>`).join('')}
+      ${days.map(iso => {
+        const isOut = !iso.startsWith(state.calendarMonth);
+        const todays = byDate.get(iso) || [];
+        const dots = todays.slice(0, 4).map(e => `<div class="dot" style="background:${drug(e.drugKey).color};"></div>`).join('');
+        const more = todays.length > 4 ? `<div class="more">+${todays.length - 4}</div>` : '';
+        const dayNum = Number(iso.split('-')[2]);
+        return `
+          <div class="cal-cell ${isOut ? 'out' : ''} ${isToday(iso) ? 'today' : ''}" data-iso="${iso}">
+            <div class="d">${dayNum}</div>
+            <div class="dot-row">${dots}</div>
+            ${more}
+          </div>`;
+      }).join('')}
+    </div>
+    <div id="cal-day" style="margin-top:16px;"></div>`;
+
+  document.getElementById('cal-prev').onclick = () => {
+    const d = new Date(y, m - 2, 1);
+    state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    renderCalendar();
+  };
+  document.getElementById('cal-next').onclick = () => {
+    const d = new Date(y, m, 1);
+    state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    renderCalendar();
+  };
+  // Tap = show day's list. Long-press (500 ms) = quick-add.
+  view.querySelectorAll('.cal-cell').forEach(cell => {
+    let pressTimer = null, longFired = false;
+    const start = () => {
+      longFired = false;
+      cell.classList.add('long-pressing');
+      pressTimer = setTimeout(() => {
+        longFired = true;
+        cell.classList.remove('long-pressing');
+        quickAddOnDate(cell.dataset.iso);
+      }, 500);
+    };
+    const cancel = () => {
+      cell.classList.remove('long-pressing');
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+    cell.addEventListener('touchstart', start, { passive: true });
+    cell.addEventListener('touchmove', cancel);
+    cell.addEventListener('touchend', cancel);
+    cell.addEventListener('touchcancel', cancel);
+    cell.addEventListener('mousedown', start);
+    cell.addEventListener('mouseup', cancel);
+    cell.addEventListener('mouseleave', cancel);
+    cell.onclick = () => { if (!longFired) showCalDay(cell.dataset.iso, byDate); };
+  });
+  if (todayISO().startsWith(state.calendarMonth)) showCalDay(todayISO(), byDate);
+}
+function showCalDay(iso, byDate) {
+  const wrap = document.getElementById('cal-day');
+  if (!wrap) return;
+  const entries = byDate.get(iso) || [];
+  if (!entries.length) {
+    wrap.innerHTML = `<div class="card" style="text-align:center; color:var(--text3); font-size:13px;">${escapeHtml(tF('cal.day.empty', { date: fmtDate(iso) }))}</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <h3 class="section-title">${escapeHtml(tF('cal.day.due', { date: fmtDate(iso) }))}</h3>
+    <div class="card list">
+      ${entries.map(e => `
+        <div class="row" data-pid="${e.p.id}">
+          <span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(e.eye.toUpperCase())} ${escapeHtml(drugLabel(e.drugKey))}</span>
+          <div class="meta">
+            <h3>${escapeHtml(formatPatientName(e.p))}${e.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(e.p.patientNumber)}</span>` : ''}</h3>
+            <p><span class="status-badge ${e.status}">${escapeHtml(t('status.' + e.status))}</span></p>
+          </div>
+          <div class="chev">›</div>
+        </div>`).join('')}
+    </div>`;
+  wrap.querySelectorAll('.row[data-pid]').forEach(r => {
+    r.onclick = () => go('patient', { patientId: r.dataset.pid });
+  });
+}
+async function quickAddOnDate(iso) {
+  // Pop a patient picker that, when chosen, lands on the injection editor
+  // pre-filled with the chosen date.
+  const patients = await db.listPatients();
+  if (!patients.length) { toast('No patients'); return; }
+  const el = document.createElement('div');
+  el.className = 'fs-overlay';
+  el.innerHTML = `
+    <header>
+      <button id="qa-cancel" class="btn-ghost" style="padding:6px 10px;">${escapeHtml(t('btn.cancel'))}</button>
+      <h2>${escapeHtml(tF('cal.quick.add', { date: fmtDate(iso) }))}</h2>
+    </header>
+    <main>
+      <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('cal.pick.patient'))}</p>
+      <div class="card list">
+        ${patients.map(p => `
+          <div class="row" data-pid="${p.id}">
+            <div class="avatar">${escapeHtml(p.initials || deriveInitials(p.name) || '·')}</div>
+            <div class="meta">
+              <h3>${escapeHtml(formatPatientName(p))}${p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(p.patientNumber)}</span>` : ''}</h3>
+            </div>
+            <div class="chev">›</div>
+          </div>`).join('')}
+      </div>
+    </main>`;
+  document.body.appendChild(el);
+  document.getElementById('qa-cancel').onclick = () => el.remove();
+  el.querySelectorAll('.row[data-pid]').forEach(r => {
+    r.onclick = () => {
+      el.remove();
+      // Carry the picked date into the editor via state.
+      state.injectionDatePrefill = iso;
+      go('injection', { patientId: r.dataset.pid, injectionId: null, eye: 'od' });
+    };
+  });
+}
+
+/* =====================================================================
+   Stats hub
+   =================================================================== */
+async function renderStats() {
+  titleEl.textContent = t('stats.title');
+  primaryBtn.style.display = 'none';
+
+  const patients = await db.listPatients();
+  const allInj = await db.listAllInjections();
+  const drugCount = {};
+  for (const i of allInj) drugCount[i.drug] = (drugCount[i.drug] || 0) + 1;
+  const indCount = {};
+  let activeEyes = 0;
+  for (const p of patients) {
+    ensurePatientShape(p);
+    for (const ek of ['od', 'os']) {
+      const e = p.eyes[ek];
+      if (!e.active) continue;
+      activeEyes++;
+      indCount[e.diagnosis || 'unknown'] = (indCount[e.diagnosis || 'unknown'] || 0) + 1;
+    }
+  }
+  const oneYearAgo = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return todayISO(d.getTime()); })();
+  const recent = allInj.filter(i => i.date >= oneYearAgo);
+  const perPatient = patients.length ? recent.length / patients.length : 0;
+  let taeIntervals = [];
+  for (const p of patients) {
+    for (const ek of ['od', 'os']) {
+      const e = p.eyes[ek];
+      if (!e.active || e.regimen !== 'tae') continue;
+      const inj = allInj.filter(i => i.patientId === p.id && i.eye === ek).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      if (!inj.length) continue;
+      const lastIv = inj[inj.length - 1].intervalWeeksApplied;
+      if (isFinite(lastIv)) taeIntervals.push(lastIv);
+    }
+  }
+  const meanTae = taeIntervals.length ? (taeIntervals.reduce((a,b)=>a+b,0) / taeIntervals.length) : null;
+  const compCount = allInj.reduce((s, i) => s + (Array.isArray(i.complications) ? i.complications.length : 0), 0);
+  const compRate = allInj.length ? (compCount * 1000 / allInj.length) : 0;
+  const drugTotal = Object.values(drugCount).reduce((a,b) => a + b, 0) || 1;
+  const indTotal  = Object.values(indCount).reduce((a,b) => a + b, 0) || 1;
+
+  view.innerHTML = `
+    <div class="eye-grid" style="margin-bottom:12px;">
+      ${statTile(t('stats.total.injections'), allInj.length)}
+      ${statTile(t('stats.total.patients'), patients.length)}
+      ${statTile(t('stats.eyes.active'), activeEyes)}
+      ${statTile(t('stats.injections.per.year'), perPatient.toFixed(1))}
+      ${statTile(t('stats.mean.interval'), meanTae == null ? '—' : meanTae.toFixed(1) + ' w')}
+      ${statTile(t('stats.complications.rate'), compRate.toFixed(1))}
+    </div>
+
+    <h3 class="section-title">${escapeHtml(t('stats.drug.share'))}</h3>
+    <div class="card">
+      ${DRUGS.filter(d => drugCount[d.key]).map(d => {
+        const n = drugCount[d.key] || 0;
+        const pct = (n / drugTotal) * 100;
+        return `
+          <div style="margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+              <span><span class="drug-pill" style="background:${d.color};">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</span></span>
+              <span style="font-variant-numeric:tabular-nums; font-size:13px;">${n} · ${pct.toFixed(0)}%</span>
+            </div>
+            <div style="height:6px; background:var(--mist); border-radius:3px; overflow:hidden;">
+              <div style="height:100%; width:${pct}%; background:${d.color};"></div>
+            </div>
+          </div>`;
+      }).join('') || `<p style="color:var(--text3); font-size:13px; margin:0;">—</p>`}
+    </div>
+
+    <h3 class="section-title">${escapeHtml(t('stats.indication.share'))}</h3>
+    <div class="card">
+      ${INDICATIONS.filter(i => indCount[i.key]).map(i => {
+        const n = indCount[i.key] || 0;
+        const pct = (n / indTotal) * 100;
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--separator);">
+            <span>${escapeHtml(getLang() === 'fr' ? i.fr : i.en)}</span>
+            <span style="font-variant-numeric:tabular-nums; font-size:13px;">${n} · ${pct.toFixed(0)}%</span>
+          </div>`;
+      }).join('') || `<p style="color:var(--text3); font-size:13px; margin:0;">—</p>`}
+    </div>
+
+    <h3 class="section-title">${escapeHtml(t('stats.title'))}</h3>
+    <div class="card list">
+      <div class="row" data-go="letter-gain"><div class="avatar">📈</div><div class="meta"><h3>${escapeHtml(t('stats.letter.gain'))}</h3></div><div class="chev">›</div></div>
+      <div class="row" data-go="capacity"><div class="avatar">📅</div><div class="meta"><h3>${escapeHtml(t('stats.capacity'))}</h3></div><div class="chev">›</div></div>
+      <div class="row" data-go="cost"><div class="avatar">💰</div><div class="meta"><h3>${escapeHtml(t('stats.cost'))}</h3></div><div class="chev">›</div></div>
+      <div class="row" data-go="complications"><div class="avatar">⚠</div><div class="meta"><h3>${escapeHtml(t('stats.complications.detail'))}</h3></div><div class="chev">›</div></div>
+      <div class="row" data-go="recall"><div class="avatar">🔔</div><div class="meta"><h3>${escapeHtml(t('stats.recall'))}</h3></div><div class="chev">›</div></div>
+    </div>`;
+
+  view.querySelectorAll('.row[data-go]').forEach(r => r.onclick = () => go(r.dataset.go));
+}
+function statTile(label, value) {
+  return `
+    <div class="card" style="margin:0;">
+      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em;">${escapeHtml(label)}</div>
+      <div style="font-family:var(--serif); font-size:24px; font-weight:500;">${escapeHtml(String(value))}</div>
+    </div>`;
+}
+
+/* ─── Letter-gain outcomes ─────────────────────────────────────────── */
+async function renderLetterGain() {
+  titleEl.textContent = t('stats.letter.gain');
+  primaryBtn.style.display = 'none';
+  const patients = await db.listPatients();
+  const allInj = await db.listAllInjections();
+  const cutoffDays = 270; // ~9 mo
+  // For each active eye, get baseline (first VA-recorded injection) and
+  // latest VA-recorded injection that is at least cutoff days after baseline.
+  const byInd = new Map(); // indicationKey → { eyes:[{deltaLines}] }
+  for (const p of patients) {
+    ensurePatientShape(p);
+    for (const ek of ['od','os']) {
+      const e = p.eyes[ek];
+      if (!e.active) continue;
+      const list = allInj.filter(i => i.patientId === p.id && i.eye === ek && i.vaSnellen).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      if (list.length < 2) continue;
+      const baseline = list[0];
+      const candidates = list.filter(i => daysBetween(baseline.date, i.date) >= cutoffDays);
+      if (!candidates.length) continue;
+      const final = candidates[candidates.length - 1];
+      const baseV = snellenToLogMAR(baseline.vaSnellen);
+      const finV = snellenToLogMAR(final.vaSnellen);
+      if (baseV == null || finV == null) continue;
+      const deltaLines = logMarToLines(baseV - finV);
+      const key = e.diagnosis || 'unknown';
+      if (!byInd.has(key)) byInd.set(key, []);
+      byInd.get(key).push(deltaLines);
+    }
+  }
+  view.innerHTML = `
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(tF('stats.letter.gain.body', { n: 1 }))}</p>
+    <div class="card">
+      ${Array.from(byInd.entries()).map(([k, arr]) => {
+        const gain5  = arr.filter(d => d >= 1).length;   // ≥ 1 line ≈ ≥ 5 letters
+        const gain10 = arr.filter(d => d >= 2).length;
+        const gain15 = arr.filter(d => d >= 3).length;
+        const total = arr.length;
+        return `
+          <div style="padding:8px 0; border-bottom:1px solid var(--separator);">
+            <div style="font-size:14px; font-weight:600; margin-bottom:4px;">${escapeHtml(indicationLabel(k))} <span style="color:var(--text3); font-weight:400;">· n=${total}</span></div>
+            <div style="font-size:12px; color:var(--text2);">
+              ≥ 5 letters: <strong>${((gain5/total)*100).toFixed(0)}%</strong> ·
+              ≥ 10: <strong>${((gain10/total)*100).toFixed(0)}%</strong> ·
+              ≥ 15: <strong>${((gain15/total)*100).toFixed(0)}%</strong>
+            </div>
+          </div>`;
+      }).join('') || `<p style="color:var(--text3); font-size:13px; margin:0;">Not enough data yet — needs at least one eye with ≥ 9 mo of follow-up and Snellen VA at baseline + a later visit.</p>`}
+    </div>`;
+}
+
+/* ─── Capacity planner ─────────────────────────────────────────────── */
+async function renderCapacity() {
+  titleEl.textContent = t('stats.capacity');
+  primaryBtn.style.display = 'none';
+  const patients = await db.listPatients();
+  const today = todayISO();
+  const days = [];
+  for (let i = 0; i < 28; i++) days.push(addDays(today, i));
+  const counts = new Map(days.map(d => [d, 0]));
+  for (const p of patients) {
+    ensurePatientShape(p);
+    const injs = await db.listInjections(p.id);
+    for (const ek of ['od','os']) {
+      const eye = { ...p.eyes[ek], _eyeKey: ek };
+      if (!eye.active) continue;
+      const s = eyeStatus(eye, injs, today);
+      if (!s.nextDate) continue;
+      if (s.nextDate >= today && s.nextDate <= days[days.length - 1]) {
+        counts.set(s.nextDate, (counts.get(s.nextDate) || 0) + 1);
+      } else if (s.status === 'late') {
+        counts.set(today, (counts.get(today) || 0) + 1);
+      }
+    }
+  }
+  const TARGET = 10; // tweak in Settings later
+  const max = Math.max(...Array.from(counts.values()), TARGET);
+  view.innerHTML = `
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('stats.capacity.body'))}</p>
+    <div class="card">
+      ${days.map(d => {
+        const n = counts.get(d) || 0;
+        const pct = (n / max) * 100;
+        const over = n > TARGET;
+        return `
+          <div style="display:flex; align-items:center; gap:10px; padding:4px 0;">
+            <div style="width:70px; font-size:12px; color:var(--text3);">${escapeHtml(fmtDate(d))}</div>
+            <div style="flex:1; height:8px; background:var(--mist); border-radius:4px; overflow:hidden;">
+              <div style="height:100%; width:${pct}%; background:${over ? 'var(--ember)' : 'var(--signal)'};"></div>
+            </div>
+            <div style="width:36px; text-align:right; font-variant-numeric:tabular-nums; font-size:13px;">${n}</div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ─── Cost ledger ──────────────────────────────────────────────────── */
+async function renderCost() {
+  titleEl.textContent = t('stats.cost');
+  primaryBtn.style.display = 'none';
+  const allInj = await db.listAllInjections();
+  const costs = getCosts();
+  const byDrug = {};
+  for (const i of allInj) byDrug[i.drug] = (byDrug[i.drug] || 0) + 1;
+  let total = 0;
+  view.innerHTML = `
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('stats.cost.body'))}</p>
+    <div class="card">
+      ${DRUGS.map(d => {
+        const n = byDrug[d.key] || 0;
+        const unit = costs[d.key] || 0;
+        const lineTotal = n * unit;
+        total += lineTotal;
+        return `
+          <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--separator);">
+            <span class="drug-pill" style="background:${d.color};">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</span>
+            <div style="flex:1; font-size:13px;">${n} × ${unit ? '$' + unit : '—'}</div>
+            <div style="font-variant-numeric:tabular-nums; font-size:13px;">${unit ? '$' + lineTotal.toLocaleString() : '—'}</div>
+          </div>`;
+      }).join('')}
+      <div style="display:flex; justify-content:space-between; padding-top:8px; font-weight:600;">
+        <span>Total</span>
+        <span>$${total.toLocaleString()}</span>
+      </div>
+    </div>`;
+}
+
+/* ─── Complications tracker ────────────────────────────────────────── */
+async function renderComplications() {
+  titleEl.textContent = t('stats.complications.detail');
+  primaryBtn.style.display = 'none';
+  const allInj = await db.listAllInjections();
+  const patients = await db.listPatients();
+  const pById = new Map(patients.map(p => [p.id, p]));
+  const events = [];
+  for (const i of allInj) {
+    for (const c of (i.complications || [])) {
+      events.push({ key: c, date: i.date, patientId: i.patientId, eye: i.eye });
+    }
+  }
+  events.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  view.innerHTML = `
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('stats.complications.body'))}</p>
+    ${events.length ? `<div class="card list">
+      ${events.map(e => {
+        const p = pById.get(e.patientId);
+        return `
+          <div class="row" data-pid="${e.patientId}">
+            <div class="avatar" style="background:rgba(220,38,38,0.14); color:#991B1B;">⚠</div>
+            <div class="meta">
+              <h3>${escapeHtml(complicationLabel(e.key))}</h3>
+              <p>${escapeHtml(fmtDate(e.date))} · ${escapeHtml(e.eye.toUpperCase())} · ${escapeHtml(formatPatientName(p || {}))}</p>
+            </div>
+            <div class="chev">›</div>
+          </div>`;
+      }).join('')}
+    </div>` : `<div class="empty"><p>—</p></div>`}`;
+  view.querySelectorAll('.row[data-pid]').forEach(r => {
+    r.onclick = () => go('patient', { patientId: r.dataset.pid });
+  });
+}
+
+/* ─── Recall list ─────────────────────────────────────────────────── */
+async function renderRecall() {
+  titleEl.textContent = t('stats.recall');
+  primaryBtn.style.display = 'none';
+  const wks = getRecallWeeks();
+  const cutoffDate = addDays(todayISO(), -wks * 7);
+  const patients = await db.listPatients();
+  const flagged = [];
+  for (const p of patients) {
+    ensurePatientShape(p);
+    const injs = await db.listInjections(p.id);
+    for (const ek of ['od','os']) {
+      const e = p.eyes[ek];
+      if (!e.active) continue;
+      const list = injs.filter(i => i.eye === ek).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      const last = list[list.length - 1];
+      if (!last) continue;
+      if (last.date < cutoffDate) flagged.push({ p, eye: ek, lastDate: last.date, drug: e.drug });
+    }
+  }
+  flagged.sort((a, b) => (a.lastDate || '').localeCompare(b.lastDate || ''));
+  view.innerHTML = `
+    <label class="field">
+      <span class="lbl">${escapeHtml(t('stats.recall.weeks'))}</span>
+      <input id="recall-wks" type="number" min="4" max="52" value="${wks}">
+    </label>
+    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(tF('stats.recall.body', { n: wks }))}</p>
+    ${flagged.length ? `<div class="card list">
+      ${flagged.map(f => `
+        <div class="row" data-pid="${f.p.id}">
+          <span class="drug-pill" style="background:${drug(f.drug).color}; flex:0 0 auto;">${escapeHtml(f.eye.toUpperCase())} ${escapeHtml(drugLabel(f.drug))}</span>
+          <div class="meta">
+            <h3>${escapeHtml(formatPatientName(f.p))}${f.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(f.p.patientNumber)}</span>` : ''}</h3>
+            <p>${escapeHtml(getLang() === 'fr' ? 'Dernière inj. ' : 'Last inj. ') + escapeHtml(fmtDate(f.lastDate))}</p>
+          </div>
+          <div class="chev">›</div>
+        </div>`).join('')}
+    </div>` : `<div class="empty"><p>—</p></div>`}`;
+  document.getElementById('recall-wks').addEventListener('change', (e) => {
+    setRecallWeeks(e.target.value);
+    renderRecall();
+  });
+  view.querySelectorAll('.row[data-pid]').forEach(r => {
+    r.onclick = () => go('patient', { patientId: r.dataset.pid });
+  });
+}
+
+/* =====================================================================
+   Settings
+   =================================================================== */
+async function renderSettings() {
+  titleEl.textContent = t('settings.title');
+  primaryBtn.style.display = 'none';
+  const lang = getLang();
+  const costs = getCosts();
+  const dBackup = lastBackupDays();
+  const backupNote = dBackup == null
+    ? t('settings.backup.never')
+    : tF('settings.backup.ago', { d: dBackup });
+  view.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.language'))}</h3>
+      <div class="seg" id="lang">
+        <button data-v="en" class="${lang === 'en' ? 'on' : ''}">English</button>
+        <button data-v="fr" class="${lang === 'fr' ? 'on' : ''}">Français</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.lock'))}</h3>
+      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.lock.body'))}</p>
+      <button id="s-lock" class="btn-block">${escapeHtml(lockIsEnabled() ? t('settings.lock.disable') : t('settings.lock.enable'))}</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.email'))}</h3>
+      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.email.body'))}</p>
+      <input id="s-email" type="email" placeholder="${escapeAttr(t('settings.email.ph'))}" value="${escapeAttr(getDigestEmail())}" autocapitalize="none">
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.backup'))}</h3>
+      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 6px;">${escapeHtml(t('settings.backup.body'))}</p>
+      <p style="font-size:11px; color:${dBackup != null && dBackup > 30 ? 'var(--ember)' : 'var(--text3)'}; margin: 0 0 10px;">${escapeHtml(backupNote)}</p>
+      <button id="s-export" class="btn-block" style="margin-bottom:8px;">${escapeHtml(t('settings.export'))}</button>
+      <button id="s-import" class="btn-secondary">${escapeHtml(t('settings.import'))}</button>
+      <input id="s-import-file" type="file" accept=".json,application/json" style="display:none;">
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.cost'))}</h3>
+      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.cost.body'))}</p>
+      ${DRUGS.map(d => `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+          <span class="drug-pill" style="background:${d.color}; width:84px; flex:0 0 84px; justify-content:flex-start;">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</span>
+          <input data-cost-key="${d.key}" type="number" min="0" step="1" inputmode="numeric" value="${costs[d.key] || ''}" style="flex:1;">
+        </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <button id="s-demo" class="btn-secondary" style="margin-bottom:8px;">${escapeHtml(t('settings.demo.show'))}</button>
+      <button id="s-terms" class="btn-secondary">${escapeHtml(t('settings.terms'))}</button>
+    </div>`;
+
+  view.querySelectorAll('#lang button').forEach(b => {
+    b.onclick = () => { setLang(b.dataset.v); renderSettings(); refreshTabBar(); };
+  });
+  document.getElementById('s-lock').onclick = async () => {
+    if (lockIsEnabled()) disableLock();
+    else await enableLock();
+    renderSettings();
+  };
+  document.getElementById('s-email').addEventListener('input', (e) => setDigestEmail(e.target.value));
+  document.getElementById('s-export').onclick = exportEncryptedBackup;
+  document.getElementById('s-import').onclick = () => document.getElementById('s-import-file').click();
+  document.getElementById('s-import-file').onchange = (e) => importEncryptedBackup(e.target.files?.[0]);
+  view.querySelectorAll('[data-cost-key]').forEach(input => {
+    input.addEventListener('change', () => setCost(input.dataset.costKey, Number(input.value)));
+  });
+  document.getElementById('s-demo').onclick = () => showDemoFlow(true);
+  document.getElementById('s-terms').onclick = () => showTermsScreen(true);
+}
+
+/* =====================================================================
+   Terms / Demo / Install hint
+   =================================================================== */
+function showTermsScreen(force) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'fs-overlay';
+    el.innerHTML = `
+      <header><h2>${escapeHtml(t('terms.title'))}</h2></header>
+      <main>
+        <p style="color:var(--text2); font-size:14px;">${escapeHtml(t('terms.intro'))}</p>
+        ${[1,2,3,4,5,6,7].map(i => `
+          <h3 style="font-size:14px; font-weight:600; margin: 14px 0 4px;">${escapeHtml(t('terms.s' + i + '.h'))}</h3>
+          <p style="color:var(--text2); font-size:14px;">${escapeHtml(t('terms.s' + i + '.b'))}</p>
+        `).join('')}
+        <p style="color:var(--text3); font-size:13px; margin-top:18px; font-style:italic;">${escapeHtml(t('terms.confirm'))}</p>
+      </main>
+      <footer>
+        <button id="t-ok" class="btn-block">${escapeHtml(force ? t('btn.done') : t('btn.agree'))}</button>
+      </footer>`;
+    document.body.appendChild(el);
+    document.getElementById('t-ok').onclick = () => {
+      localStorage.setItem(TERMS_KEY, new Date().toISOString());
+      el.remove();
+      resolve();
+    };
+  });
+}
+function showDemoFlow(force) {
+  return new Promise((resolve) => {
+    const slides = [
+      { h: t('demo.s1.h'), b: t('demo.s1.b') },
+      { h: t('demo.s2.h'), b: t('demo.s2.b') },
+      { h: t('demo.s3.h'), b: t('demo.s3.b') },
+      { h: t('demo.s4.h'), b: t('demo.s4.b') },
+      { h: t('demo.s5.h'), b: t('demo.s5.b') },
+      { h: t('demo.s6.h'), b: t('demo.s6.b') },
+    ];
+    let i = 0;
+    const el = document.createElement('div');
+    el.className = 'fs-overlay';
+    document.body.appendChild(el);
+    const render = () => {
+      const last = i === slides.length - 1;
+      el.innerHTML = `
+        <header style="display:flex; align-items:center; justify-content:space-between;">
+          <img src="injectlog_icon.png" style="width:32px; height:32px; border-radius:7px;">
+          <button id="d-skip" class="btn-ghost">${escapeHtml(t('demo.skip'))}</button>
+        </header>
+        <main style="display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:32px;">
+          <h2 style="font-family:var(--serif); font-size:24px; font-weight:500; margin:0 0 10px;">${escapeHtml(slides[i].h)}</h2>
+          <p style="color:var(--text2); font-size:15px; max-width:32ch; line-height:1.5; white-space:pre-wrap;">${escapeHtml(slides[i].b)}</p>
+        </main>
+        <footer>
+          <button id="d-next" class="btn-block">${escapeHtml(last ? t('demo.done') : t('demo.next'))}</button>
+        </footer>`;
+      document.getElementById('d-skip').onclick = finish;
+      document.getElementById('d-next').onclick = () => { if (last) finish(); else { i++; render(); } };
+    };
+    const finish = () => {
+      localStorage.setItem(DEMO_KEY, '1');
+      el.remove();
+      resolve();
+    };
+    render();
+  });
+}
+function isIosSafari() {
+  const ua = navigator.userAgent || '';
+  const isIos = /iPhone|iPad|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isIos) return false;
+  if (/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser|GSA|FBAN|FBAV|Instagram|Line|MicroMessenger/i.test(ua)) return false;
+  return true;
+}
+function isStandalone() {
+  return navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+async function showInstallHint() {
+  if (!isIosSafari() || isStandalone()) return;
+  if (localStorage.getItem(INSTALL_DISMISS_KEY) === '1') return;
+  const banner = document.getElementById('install-hint');
+  const backdrop = document.getElementById('install-backdrop');
+  banner.querySelector('h4').textContent = t('install.title') + ' · Installer sur votre iPhone';
+  banner.querySelector('p').innerHTML = t('install.body') + '<br><br>Touchez Partager dans Safari puis <strong>Ajouter à l\'écran d\'accueil</strong>.';
+  banner.querySelector('button').textContent = t('install.ok');
+  banner.classList.add('show');
+  backdrop.classList.add('show');
+  return new Promise((resolve) => {
+    document.getElementById('install-ok').addEventListener('click', () => {
+      banner.classList.remove('show');
+      backdrop.classList.remove('show');
+      localStorage.setItem(INSTALL_DISMISS_KEY, '1');
+      resolve();
+    }, { once: true });
+  });
+}
+
+/* =====================================================================
+   Email today's list (mailto)
+   =================================================================== */
+async function emailTodaysList(enriched) {
+  const email = getDigestEmail();
+  if (!email) { toast(t('home.email.no.email')); return; }
+  const items = (enriched || []).filter(x => {
+    return x.sOd.status === 'due' || x.sOd.status === 'late' ||
+           x.sOs.status === 'due' || x.sOs.status === 'late';
+  });
+  if (!items.length) { toast(t('home.email.none')); return; }
+  const lines = items.map(({ p, sOd, sOs }) => {
+    const parts = [];
+    if (sOd.status === 'due' || sOd.status === 'late') parts.push(`OD ${drugLabel(p.eyes.od.drug)} (${t('status.' + sOd.status)})`);
+    if (sOs.status === 'due' || sOs.status === 'late') parts.push(`OS ${drugLabel(p.eyes.os.drug)} (${t('status.' + sOs.status)})`);
+    return `• ${formatPatientName(p)}${p.patientNumber ? ' #' + p.patientNumber : ''} — ${parts.join(', ')}`;
+  });
+  const subject = tF('home.email.subject', { date: fmtDate(todayISO()) });
+  const body = lines.join('\n');
+  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  toast(t('home.email.opened'));
+}
+
+/* ─── service worker ──────────────────────────────────────────────── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+/* ─── boot ────────────────────────────────────────────────────────── */
+(async function boot() {
+  await showInstallHint();
+  if (navigator.storage?.persist) { try { await navigator.storage.persist(); } catch {} }
+  if (lockIsEnabled()) await showLockScreen();
+  const termsAt = localStorage.getItem(TERMS_KEY);
+  if (!termsAt) await showTermsScreen(false);
+  if (!localStorage.getItem(DEMO_KEY)) await showDemoFlow(false);
+  await go('patients');
+})();
+</script>
+</body>
+</html>

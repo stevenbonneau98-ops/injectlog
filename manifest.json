@@ -1,0 +1,19 @@
+{
+  "name": "InjectLog",
+  "short_name": "InjectLog",
+  "description": "Anti-VEGF injection tracker — offline, local-only.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBFAF7",
+  "theme_color": "#0A6BFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "injectlog_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
