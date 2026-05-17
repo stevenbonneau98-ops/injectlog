@@ -107,6 +107,15 @@ ${JSON.stringify(body.eyes, null, 2)}`;
 
   if (!claudeRes.ok) {
     const text = await claudeRes.text().catch(() => '');
+    // Friendlier message for the most common deploy mishap: the API key
+    // is missing or wrong on Vercel. We surface what to do in the UI.
+    if (claudeRes.status === 401 || claudeRes.status === 403) {
+      return json({
+        error: 'auth',
+        message: 'Anthropic API key invalid or missing. Set ANTHROPIC_API_KEY in Vercel → Project → Settings → Environment Variables, then redeploy.',
+        detail: text.slice(0, 200),
+      }, 502);
+    }
     return json({ error: `Anthropic ${claudeRes.status}: ${text.slice(0, 400)}` }, 502);
   }
   const data = await claudeRes.json().catch(() => ({}));

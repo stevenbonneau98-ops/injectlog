@@ -1141,10 +1141,37 @@ function snellenToLogMAR(s) {
   return Math.log10(den / num);
 }
 const logMarToLines = (delta) => delta / 0.1; // 1 line ≈ 0.1 logMAR
+
+// Standard clinical Snellen "ladder" — only these labels are shown on the
+// per-patient timeline's right axis so it doesn't display oddball values
+// like 20/35 or 20/19. CF/HM/LP/NLP are included as the standard low-
+// vision sentinel categories, mapped to their conventional logMAR
+// equivalents (Holladay-style; CF≈1.85, HM≈2.3, LP≈2.7, NLP≈3.0).
+const SNELLEN_LADDER = [
+  { label: '20/20',  lm: 0.000 },
+  { label: '20/25',  lm: 0.097 },
+  { label: '20/30',  lm: 0.176 },
+  { label: '20/40',  lm: 0.301 },
+  { label: '20/50',  lm: 0.398 },
+  { label: '20/60',  lm: 0.477 },
+  { label: '20/80',  lm: 0.602 },
+  { label: '20/100', lm: 0.699 },
+  { label: '20/150', lm: 0.875 },
+  { label: '20/200', lm: 1.000 },
+  { label: '20/400', lm: 1.301 },
+  { label: 'CF',     lm: 1.850 },
+  { label: 'HM',     lm: 2.300 },
+  { label: 'LP',     lm: 2.700 },
+  { label: 'NLP',    lm: 3.000 },
+];
 function logMarToSnellen(lm) {
   if (lm == null || !isFinite(lm)) return '—';
-  const den = Math.round(20 * Math.pow(10, lm));
-  return '20/' + den;
+  // Snap to the nearest ladder rung — never invent a non-standard value.
+  let best = SNELLEN_LADDER[0];
+  for (const s of SNELLEN_LADDER) {
+    if (Math.abs(s.lm - lm) < Math.abs(best.lm - lm)) best = s;
+  }
+  return best.label;
 }
 
 function emptyEye() {
@@ -3112,16 +3139,13 @@ function openTimelineModal(eyeKey, list) {
   const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
   const draw = () => {
     const z = state2.zoom;
-    const maxOff = Math.max(0, 1 - 1 / z);
     el.querySelector('#tl-svg').innerHTML = combinedTimelineSvg(list, {
       zoom: z, offset: state2.offset, W: 600, H: 360, alwaysLabel: true,
     });
     el.querySelector('#tl-zo').disabled = z <= 1;
     el.querySelector('#tl-zi').disabled = z >= 8;
-    el.querySelector('#tl-pl').disabled = z <= 1 || state2.offset <= 0;
-    el.querySelector('#tl-pr').disabled = z <= 1 || state2.offset >= maxOff - 0.001;
     el.querySelector('#tl-reset').disabled = z === 1 && state2.offset === 0;
-    el.querySelector('#tl-label').textContent = `${z.toFixed(0)}×`;
+    el.querySelector('#tl-label').textContent = z < 1.5 ? '1×' : `${z.toFixed(1)}×`;
   };
   el.innerHTML = `
     <header>
@@ -3129,16 +3153,15 @@ function openTimelineModal(eyeKey, list) {
       <h2>${escapeHtml(fr ? 'Chronologie' : 'Timeline')} · ${escapeHtml(eyeLabel)}</h2>
     </header>
     <main style="padding:14px;">
-      <div id="tl-svg" style="background:var(--surface); border:1px solid var(--separator); border-radius:10px; padding:6px;"></div>
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:8px;">
-        <button id="tl-zo" class="btn-ghost" style="padding:8px 14px; font-size:18px;">−</button>
-        <span id="tl-label" style="font-family:var(--serif); font-size:16px; min-width:40px; text-align:center;">1×</span>
-        <button id="tl-zi" class="btn-ghost" style="padding:8px 14px; font-size:18px;">+</button>
-        <button id="tl-pl" class="btn-ghost" style="padding:8px 14px; font-size:18px;">‹</button>
-        <button id="tl-pr" class="btn-ghost" style="padding:8px 14px; font-size:18px;">›</button>
-        <button id="tl-reset" class="btn-ghost" style="padding:8px 12px; font-size:12px;">${escapeHtml(fr ? 'Réinit.' : 'Reset')}</button>
+      <div id="tl-svg" style="background:var(--surface); border:1px solid var(--separator); border-radius:10px; padding:6px; touch-action:none; user-select:none;"></div>
+      <p style="font-size:11px; color:var(--text3); text-align:center; margin: 8px 0 0;">${escapeHtml(fr ? 'Pincez pour zoomer · glissez pour déplacer · double tap pour réinitialiser' : 'Pinch to zoom · drag to pan · double-tap to reset')}</p>
+      <div style="display:flex; align-items:center; justify-content:center; margin-top:10px; gap:6px;">
+        <button id="tl-zo" class="btn-ghost" style="padding:6px 12px; font-size:18px;">−</button>
+        <span id="tl-label" style="font-family:var(--serif); font-size:14px; min-width:36px; text-align:center;">1×</span>
+        <button id="tl-zi" class="btn-ghost" style="padding:6px 12px; font-size:18px;">+</button>
+        <button id="tl-reset" class="btn-ghost" style="padding:6px 10px; font-size:12px;">${escapeHtml(fr ? 'Réinit.' : 'Reset')}</button>
       </div>
-      <p style="font-size:11px; color:var(--text3); line-height:1.4; margin: 14px 4px 0;">${escapeHtml(t('pstats.timeline.legend'))}</p>
+      <p style="font-size:11px; color:var(--text3); line-height:1.4; margin: 18px 4px 0;">${escapeHtml(t('pstats.timeline.legend'))}</p>
     </main>`;
   document.body.appendChild(el);
   draw();
@@ -3155,20 +3178,71 @@ function openTimelineModal(eyeKey, list) {
     state2.offset = Math.min(maxOff, state2.offset);
     draw();
   };
-  el.querySelector('#tl-pl').onclick = () => {
-    const step = (1 / state2.zoom) * 0.4;
-    state2.offset = Math.max(0, state2.offset - step);
-    draw();
-  };
-  el.querySelector('#tl-pr').onclick = () => {
-    const step = (1 / state2.zoom) * 0.4;
-    const maxOff = Math.max(0, 1 - 1 / state2.zoom);
-    state2.offset = Math.min(maxOff, state2.offset + step);
-    draw();
-  };
   el.querySelector('#tl-reset').onclick = () => {
     state2.zoom = 1; state2.offset = 0; draw();
   };
+
+  // Native pinch (two-finger) + drag (one-finger) gestures on the SVG.
+  // Pinch keeps the data point under the midpoint of the two fingers
+  // anchored as the zoom changes — feels like a native iOS map pinch.
+  const wrap = el.querySelector('#tl-svg');
+  const clampOffset = (off, z) => {
+    const max = Math.max(0, 1 - 1 / z);
+    return Math.max(0, Math.min(max, off));
+  };
+  let pinch = null;     // active two-finger gesture
+  let pan = null;       // active one-finger drag
+  let lastTap = 0;      // for double-tap to reset
+  wrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0], t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const r = wrap.getBoundingClientRect();
+      const midX = (t1.clientX + t2.clientX) / 2 - r.left;
+      const boxW = Math.max(1, r.width);
+      // The data fraction currently rendered at this on-screen midpoint —
+      // we'll keep it pinned to the same midpoint as zoom changes.
+      const dataFrac = state2.offset + (midX / boxW) * (1 / state2.zoom);
+      pinch = { startZoom: state2.zoom, startDist: dist, dataFrac, midX, boxW };
+      pan = null;
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      // Double-tap (within 300 ms) to reset.
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        state2.zoom = 1; state2.offset = 0; draw();
+        lastTap = 0;
+      } else {
+        lastTap = now;
+      }
+      if (state2.zoom > 1) {
+        const r = wrap.getBoundingClientRect();
+        pan = { startX: e.touches[0].clientX, startOffset: state2.offset, boxW: Math.max(1, r.width) };
+        pinch = null;
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+  wrap.addEventListener('touchmove', (e) => {
+    if (pinch && e.touches.length === 2) {
+      const t1 = e.touches[0], t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const newZoom = Math.max(1, Math.min(8, pinch.startZoom * (dist / Math.max(1, pinch.startDist))));
+      state2.zoom = newZoom;
+      state2.offset = clampOffset(pinch.dataFrac - (pinch.midX / pinch.boxW) * (1 / newZoom), newZoom);
+      draw();
+      e.preventDefault();
+    } else if (pan && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - pan.startX;
+      const newOffset = pan.startOffset - (dx / pan.boxW) * (1 / state2.zoom);
+      state2.offset = clampOffset(newOffset, state2.zoom);
+      draw();
+      e.preventDefault();
+    }
+  }, { passive: false });
+  const endTouch = () => { pinch = null; pan = null; };
+  wrap.addEventListener('touchend', endTouch);
+  wrap.addEventListener('touchcancel', endTouch);
 }
 
 // Combined per-eye timeline. Single SVG: CRT line (left axis, blue),
@@ -3209,11 +3283,24 @@ function combinedTimelineSvg(list, opts = {}) {
   };
   const vaVals = visible.map(i => snellenToLogMAR(i.vaSnellen));
   const haveVa = vaVals.filter(v => v != null);
-  const vaMin = haveVa.length ? Math.min(...haveVa) : 0;
-  const vaMax = haveVa.length ? Math.max(...haveVa) : 1;
+  // Snap the VA range to the standard Snellen ladder so axis ticks align
+  // with the curve and dots. Bottom of the chart = best VA (lowest
+  // logMAR), top = worst VA — but visually we want best VA at the top,
+  // worst at the bottom, so invert: y maps higher logMAR → lower y.
+  const dataMin = haveVa.length ? Math.min(...haveVa) : 0;
+  const dataMax = haveVa.length ? Math.max(...haveVa) : 1;
+  let loIdx = SNELLEN_LADDER.findIndex(s => s.lm >= dataMin);
+  if (loIdx === -1) loIdx = SNELLEN_LADDER.length - 1;
+  if (loIdx > 0 && SNELLEN_LADDER[loIdx].lm > dataMin + 0.001) loIdx--;
+  let hiIdx = SNELLEN_LADDER.findIndex(s => s.lm > dataMax);
+  if (hiIdx === -1) hiIdx = SNELLEN_LADDER.length - 1;
+  else if (hiIdx > 0) hiIdx--;
+  if (hiIdx < loIdx) hiIdx = loIdx;
+  const vaMin = SNELLEN_LADDER[loIdx].lm;
+  const vaMax = Math.max(vaMin + 0.05, SNELLEN_LADDER[hiIdx].lm);
   const vaY = (v) => {
     if (v == null) return null;
-    const span = Math.max(0.1, vaMax - vaMin);
+    const span = Math.max(0.05, vaMax - vaMin);
     return padT + ((v - vaMin) / span) * innerH;
   };
   const crtPath = (() => {
@@ -3267,17 +3354,39 @@ function combinedTimelineSvg(list, opts = {}) {
   }).join('');
   const firstLabel = visible.length ? fmtDate(visible[0].date) : '';
   const lastLabel = visible.length ? fmtDate(visible[visible.length - 1].date) : '';
-  // Y-axis ticks: 3 each side (min / mid / max). Right axis is Snellen.
-  const axisTicks = (mn, mx, fmt, side) => {
+  // Left (CRT) axis: simple min/mid/max numeric ticks.
+  const crtAxisTicks = (mn, mx) => {
     const mid = (mn + mx) / 2;
-    const x = side === 'left' ? 2 : W - 2;
-    const anc = side === 'left' ? 'start' : 'end';
-    const col = side === 'left' ? 'var(--signal)' : 'var(--text2)';
     return [
-      `<text x="${x}" y="${padT + 8}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mx)}</text>`,
-      `<text x="${x}" y="${padT + innerH / 2 + 3}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mid)}</text>`,
-      `<text x="${x}" y="${padT + innerH}" font-size="9" fill="${col}" text-anchor="${anc}">${fmt(mn)}</text>`,
+      `<text x="2" y="${padT + 8}" font-size="9" fill="var(--signal)">${Math.round(mx)}</text>`,
+      `<text x="2" y="${padT + innerH / 2 + 3}" font-size="9" fill="var(--signal)">${Math.round(mid)}</text>`,
+      `<text x="2" y="${padT + innerH}" font-size="9" fill="var(--signal)">${Math.round(mn)}</text>`,
     ].join('');
+  };
+  // Right (Snellen) axis: ticks at every standard ladder rung inside the
+  // data range, padded one step on each side so range labels match
+  // clinical convention. Cap density so labels don't overlap.
+  const snellenAxisTicks = (vmn, vmx) => {
+    let lo = SNELLEN_LADDER.findIndex(s => s.lm >= vmn);
+    if (lo === -1) lo = SNELLEN_LADDER.length - 1;
+    if (lo > 0 && SNELLEN_LADDER[lo].lm > vmn + 0.001) lo--;
+    let hi = SNELLEN_LADDER.findIndex(s => s.lm > vmx);
+    if (hi === -1) hi = SNELLEN_LADDER.length - 1;
+    else if (hi > 0) hi--;
+    if (hi < lo) hi = lo;
+    const inRange = SNELLEN_LADDER.slice(lo, hi + 1);
+    const maxTicks = Math.max(2, Math.floor(innerH / 22));
+    let picks = inRange;
+    if (inRange.length > maxTicks) {
+      picks = [];
+      const stride = (inRange.length - 1) / (maxTicks - 1);
+      for (let i = 0; i < maxTicks; i++) picks.push(inRange[Math.round(i * stride)]);
+    }
+    return picks.map(s => {
+      const y = vaY(s.lm);
+      if (y == null) return '';
+      return `<text x="${W - 2}" y="${(y + 3).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="end">${s.label}</text>`;
+    }).join('');
   };
   return `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;">
@@ -3291,8 +3400,8 @@ function combinedTimelineSvg(list, opts = {}) {
       <text x="${W - padR}" y="${H - 14}" font-size="9" fill="var(--text3)" text-anchor="end">${escapeHtml(lastLabel)}</text>
       <text x="${padL}" y="${H - 4}" font-size="8" fill="var(--signal)">CRT (µm)</text>
       <text x="${W - padR + 4}" y="${H - 4}" font-size="8" fill="var(--text2)">Snellen</text>
-      ${haveCrt.length ? axisTicks(crtMin, crtMax, (v) => Math.round(v), 'left') : ''}
-      ${haveVa.length ? axisTicks(vaMin, vaMax, (v) => logMarToSnellen(v), 'right') : ''}
+      ${haveCrt.length ? crtAxisTicks(crtMin, crtMax) : ''}
+      ${haveVa.length ? snellenAxisTicks(vaMin, vaMax) : ''}
     </svg>`;
 }
 
@@ -3303,8 +3412,10 @@ async function renderCalendar() {
   titleEl.textContent = t('cal.title');
   primaryBtn.style.display = 'none';
 
-  // 'today' = today's-clinic view (no grid); 'week' / 'month' are grid views.
-  if (typeof state.calendarView !== 'string') state.calendarView = 'today';
+  // Calendar shows the grid only; today's clinic lives in the List tab.
+  if (state.calendarView !== 'week' && state.calendarView !== 'month') {
+    state.calendarView = 'week';
+  }
   const now = new Date();
   if (!state.calendarMonth) {
     state.calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -3344,54 +3455,17 @@ async function renderCalendar() {
       m.get(p.id)[eyeKey] = { drugKey: eye.drug, injNumber, status: s.status };
     }
   }
-  const dayPatientsArr = (iso) => Array.from((byDayPatient.get(iso) || new Map()).values());
   const dow = getLang() === 'fr' ? ['D','L','M','M','J','V','S'] : ['S','M','T','W','T','F','S'];
   const isToday = (iso) => iso === today;
-  const isTodayView = state.calendarView === 'today';
   const isWeek = state.calendarView === 'week';
   const isMonth = state.calendarView === 'month';
+  const fr = getLang() === 'fr';
   const weekDays = (() => {
     const arr = [];
     for (let i = 0; i < 7; i++) arr.push(addDays(state.calendarWeekStart, i));
     return arr;
   })();
   const cells = isWeek ? weekDays : days;
-
-  const todaysPatients = dayPatientsArr(today);
-  const doneKey = 'injectlog_clinic_done_' + today;
-  const done = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
-
-  // Combined-bilateral row for both Today's clinic and the day-detail panel.
-  // No status badge; instead one drug pill per active eye with the upcoming
-  // injection number ("OD · Eylea #5").
-  const fr = getLang() === 'fr';
-  const patientRowHtml = (entry, opts = {}) => {
-    const k = entry.p.id;
-    const isDone = opts.withDone ? done.has(k) : false;
-    const pillFor = (eyeKey) => {
-      const e = entry[eyeKey];
-      if (!e) return '';
-      return `<span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(eyeKey.toUpperCase())} · ${escapeHtml(drugLabel(e.drugKey))} <strong style="opacity:0.9; margin-left:3px;">#${e.injNumber}</strong></span>`;
-    };
-    return `
-      <div class="row" data-pid="${entry.p.id}" data-clinic="${k}">
-        ${opts.withDone ? `<button type="button" class="chip ${isDone ? 'selected' : ''}" data-toggle-clinic="${k}" style="padding:6px 10px; min-width:36px; justify-content:center;">${isDone ? '✓' : ''}</button>` : ''}
-        <div class="meta">
-          <h3 style="${isDone ? 'text-decoration:line-through; color:var(--text3);' : ''}">${escapeHtml(formatPatientName(entry.p))}${entry.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(entry.p.patientNumber)}</span>` : ''}</h3>
-          <p style="display:flex; gap:4px; flex-wrap:wrap;">${pillFor('od')}${pillFor('os')}</p>
-        </div>
-        <div class="chev">›</div>
-      </div>`;
-  };
-
-  // Today's-clinic full view — only renders in 'today' mode. Done state is
-  // keyed per-patient (not per-eye) so checking once covers bilateral.
-  const todayView = `
-    <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin: 4px 0 4px;">${escapeHtml(fr ? "Clinique du jour" : "Today's clinic")} <span style="font-family:var(--sans); font-size:12px; color:var(--text3); font-weight:400;">${escapeHtml(fmtDate(today))}</span></h2>
-    <p style="font-size:12px; color:var(--text3); margin: 0 0 10px;">${todaysPatients.length ? `${escapeHtml(todaysPatients.filter(e => done.has(e.p.id)).length + '/' + todaysPatients.length)} ${escapeHtml(fr ? 'cochés' : 'done')}` : escapeHtml(fr ? "Aucun œil prévu aujourd'hui." : 'Nothing due today.')}</p>
-    ${todaysPatients.length ? `<div class="card list">
-      ${todaysPatients.map(entry => patientRowHtml(entry, { withDone: true })).join('')}
-    </div>` : ''}`;
 
   // Shared grid (week or month).
   const gridView = `
@@ -3421,34 +3495,13 @@ async function renderCalendar() {
 
   view.innerHTML = `
     <div class="seg" style="margin: 4px 0 12px;">
-      <button id="cal-view-today" class="${isTodayView ? 'on' : ''}">${escapeHtml(fr ? "Aujourd'hui" : "Today's clinic")}${todaysPatients.length ? ` <span style="font-weight:400; opacity:0.8;">· ${todaysPatients.length}</span>` : ''}</button>
-      <button id="cal-view-week"  class="${isWeek ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Semaine' : 'Week')}</button>
-      <button id="cal-view-month" class="${isMonth ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Mois' : 'Month')}</button>
+      <button id="cal-view-week"  class="${isWeek ? 'on' : ''}">${escapeHtml(fr ? 'Semaine' : 'Week')}</button>
+      <button id="cal-view-month" class="${isMonth ? 'on' : ''}">${escapeHtml(fr ? 'Mois' : 'Month')}</button>
     </div>
-    ${isTodayView ? todayView : gridView}`;
+    ${gridView}`;
 
-  document.getElementById('cal-view-today').onclick = () => { state.calendarView = 'today'; renderCalendar(); };
   document.getElementById('cal-view-week').onclick = () => { state.calendarView = 'week'; renderCalendar(); };
   document.getElementById('cal-view-month').onclick = () => { state.calendarView = 'month'; renderCalendar(); };
-  // Today's clinic checkbox/tap wiring (only present in 'today' view).
-  view.querySelectorAll('[data-toggle-clinic]').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const k = btn.dataset.toggleClinic;
-      const set = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
-      if (set.has(k)) set.delete(k); else set.add(k);
-      localStorage.setItem(doneKey, JSON.stringify([...set]));
-      renderCalendar();
-    };
-  });
-  view.querySelectorAll('.row[data-clinic]').forEach(r => {
-    r.onclick = (e) => {
-      if (e.target.closest('[data-toggle-clinic]')) return;
-      go('patient', { patientId: r.dataset.pid });
-    };
-  });
-  if (isTodayView) return;
-  // Grid-only nav & long-press wiring below.
   document.getElementById('cal-prev').onclick = () => {
     if (isWeek) state.calendarWeekStart = addDays(state.calendarWeekStart, -7);
     else {
@@ -4441,7 +4494,22 @@ async function analysePatientWithAi(patient, injs) {
     const out = el.querySelector('#ai-out');
     if (!out) return; // user dismissed
     if (!res.ok) {
-      out.innerHTML = `<p style="color:var(--ember); font-size:13px;">${escapeHtml((fr ? 'Erreur : ' : 'Error: ') + (data?.error || res.status))}</p>`;
+      if (data?.error === 'auth') {
+        out.innerHTML = `
+          <div style="background:rgba(220,38,38,0.08); border:1px solid rgba(220,38,38,0.25); border-radius:10px; padding:12px 14px;">
+            <div style="font-size:13px; font-weight:600; color:#991B1B; margin-bottom:6px;">${escapeHtml(fr ? 'Clé API Anthropic invalide' : 'Anthropic API key invalid')}</div>
+            <p style="font-size:13px; color:var(--text2); line-height:1.5; margin: 0 0 8px;">${escapeHtml(fr
+              ? "Le serveur a reçu une erreur 401 d'Anthropic. Pour corriger :"
+              : 'The server got a 401 from Anthropic. To fix:')}</p>
+            <ol style="font-size:12.5px; color:var(--text2); line-height:1.55; padding-left:20px; margin:0;">
+              <li>${escapeHtml(fr ? 'Ouvrez Vercel → ce projet → Settings → Environment Variables.' : 'Open Vercel → this project → Settings → Environment Variables.')}</li>
+              <li>${escapeHtml(fr ? 'Ajoutez ou corrigez ANTHROPIC_API_KEY (depuis console.anthropic.com).' : 'Add or fix ANTHROPIC_API_KEY (from console.anthropic.com).')}</li>
+              <li>${escapeHtml(fr ? 'Redéployez (Deployments → ⋯ → Redeploy).' : 'Redeploy (Deployments → ⋯ → Redeploy).')}</li>
+            </ol>
+          </div>`;
+      } else {
+        out.innerHTML = `<p style="color:var(--ember); font-size:13px;">${escapeHtml((fr ? 'Erreur : ' : 'Error: ') + (data?.error || res.status))}</p>`;
+      }
       return;
     }
     const text = data.text || '';
