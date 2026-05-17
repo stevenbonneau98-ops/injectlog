@@ -3,7 +3,7 @@
 // IndexedDB, not in the cache. Bump CACHE to invalidate the shell after
 // a code change.
 
-const CACHE = 'injectlog-v3';
+const CACHE = 'injectlog-v4';
 const SHELL = ['./', './index.html', './manifest.json', './injectlog_icon.png'];
 
 self.addEventListener('install', e => {
