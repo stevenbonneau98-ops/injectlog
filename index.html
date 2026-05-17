@@ -452,8 +452,20 @@ footer.legal {
       <path d="M3 11l9-8 9 8"/>
       <path d="M5 10v10h14V10"/>
     </svg>
-    <span class="tab-label" id="tl-home">Patients</span>
+    <span class="tab-label" id="tl-home">Home</span>
     <span class="tab-badge" id="tb-home"></span>
+  </button>
+  <button class="tab" data-tab="list">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="8" y1="6" x2="20" y2="6"/>
+      <line x1="8" y1="12" x2="20" y2="12"/>
+      <line x1="8" y1="18" x2="20" y2="18"/>
+      <circle cx="4" cy="6" r="1"/>
+      <circle cx="4" cy="12" r="1"/>
+      <circle cx="4" cy="18" r="1"/>
+    </svg>
+    <span class="tab-label" id="tl-list">List</span>
+    <span class="tab-badge" id="tb-list"></span>
   </button>
   <button class="tab" data-tab="calendar">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -559,7 +571,6 @@ const SWITCH_REASONS = [
   { key: 'partial',        en: 'Partial response',      fr: 'Réponse partielle' },
   { key: 'tachyphylaxis',  en: 'Tachyphylaxis',         fr: 'Tachyphylaxie' },
   { key: 'durability',     en: 'Need longer durability',fr: 'Besoin de durabilité' },
-  { key: 'cost',           en: 'Cost / coverage',       fr: 'Coût / couverture' },
   { key: 'patient',        en: 'Patient preference',    fr: 'Préférence du patient' },
   { key: 'adverse',        en: 'Adverse event',         fr: 'Événement indésirable' },
   { key: 'other',          en: 'Other',                 fr: 'Autre' },
@@ -676,7 +687,7 @@ function setLang(c) { localStorage.setItem(LANG_KEY, c); }
 
 const STRINGS = {
   en: {
-    'tab.home': 'Patients', 'tab.calendar': 'Calendar', 'tab.stats': 'Stats', 'tab.settings': 'Settings',
+    'tab.home': 'Home', 'tab.list': 'List', 'tab.calendar': 'Calendar', 'tab.stats': 'Stats', 'tab.settings': 'Settings',
     'btn.save': 'Save', 'btn.cancel': 'Cancel', 'btn.delete': 'Delete', 'btn.back': 'Back', 'btn.close': 'Close',
     'btn.add': 'Add', 'btn.done': 'Done', 'btn.edit': 'Edit', 'btn.next': 'Next', 'btn.agree': 'I agree', 'btn.unlock': '🔓 Unlock',
 
@@ -774,8 +785,6 @@ const STRINGS = {
     'stats.timeq12.body': 'For TAE eyes that ever reached q12 stable: median weeks from first injection to that point, by drug.',
     'stats.capacity': 'Capacity planner',
     'stats.capacity.body': 'Eyes due in the next 4 weeks, by day. Flags days above target.',
-    'stats.cost': 'Cost ledger',
-    'stats.cost.body': 'Drug cost per unit × injections. Set unit costs in Settings.',
     'stats.complications.detail': 'Complications tracker',
     'stats.complications.body': 'Grouped by severity. Counts, rate per 1 000 injections, and event detail on tap.',
     'comp.sev.sight': 'Sight-threatening',
@@ -813,8 +822,6 @@ const STRINGS = {
     'settings.csv': 'Anonymised CSV (cohort)',
     'settings.csv.body': 'Export every injection as a CSV row with patient identifiers stripped (hashed pseudonym, age in years, no name / chart #). Suitable for R, SPSS or Excel.',
     'settings.csv.btn': '⬇ Export anonymised CSV',
-    'settings.cost': 'Drug unit cost',
-    'settings.cost.body': 'Used by Stats → Cost ledger. Stored locally.',
     'settings.demo.show': 'Replay welcome tour',
     'settings.terms': 'View Terms of Use',
     'settings.backup.never': 'No backup yet — export one now.',
@@ -845,7 +852,7 @@ const STRINGS = {
     'terms.s1.h': '1. What is stored',
     'terms.s1.b': 'On this device only (IndexedDB): patient name (Last, First), chart #, date of birth, notes; per-eye diagnosis, drug, regimen, interval; injection log (date, drug, eye, Snellen VA, CRT µm, IOP pre/post, complications, drug-switch reason, notes); optional OCT-screenshot photos.',
     'terms.s2.h': '2. AI features (only when you trigger them)',
-    'terms.s2.b': 'One feature optionally calls Anthropic\'s Claude (US-hosted): scanning a phone photo of a daily injection schedule to extract identifiers (name, initials, chart #) only. The prompt forbids extracting clinical content. Use only with consent or de-identified images.',
+    'terms.s2.b': 'Two optional features call Anthropic\'s Claude (US-hosted), each requiring an explicit tap: (a) scanning a phone photo of a daily injection schedule to extract identifiers (name, initials, chart #) only — the prompt forbids extracting clinical content; (b) "Analyse with AI" on a patient page, which sends a de-identified copy of that patient\'s injection history (age in years, allergies, per-eye diagnosis/regimen/injections with dates, drugs, VA, CRT, IOP, complications) — name, chart #, DOB and free-text notes are stripped before sending. Output is framed as educational discussion only, not a clinical recommendation. Use only with appropriate consent.',
     'terms.s3.h': '3. Encrypted backup',
     'terms.s3.b': 'Export an AES-256-GCM/PBKDF2 (250 k iterations) backup with a passphrase you choose. Without that passphrase the data cannot be recovered — not even by us.',
     'terms.s4.h': '4. Daily email digest',
@@ -868,12 +875,12 @@ const STRINGS = {
     'demo.s4.h': 'Log an injection',
     'demo.s4.b': "From an eye card → + Add injection. Record date, drug, Snellen VA, CRT, IOP pre/post, complications, the next interval, and optionally attach an OCT screenshot. The eye's plan auto-updates so next-due reads right.",
     'demo.s5.h': 'Calendar, recall, stats',
-    'demo.s5.b': "Calendar tab: month grid with coloured dots per drug. Long-press a day to quick-add. Stats tab: drug share, indication share, ETDRS-letter gain, capacity planner, cost ledger, recall list of forgotten eyes.",
+    'demo.s5.b': "Calendar tab: month grid with coloured dots per drug. Long-press a day to quick-add. Stats tab: drug share, indication share, ETDRS-letter gain, capacity planner, recall list of forgotten eyes.",
     'demo.s6.h': '🔐 Privacy + backups',
     'demo.s6.b': "Data stays on this device. Settings → enable Face ID lock and export an AES-256-encrypted backup with a passphrase. Without the passphrase the data cannot be recovered.",
   },
   fr: {
-    'tab.home': 'Patients', 'tab.calendar': 'Calendrier', 'tab.stats': 'Stats', 'tab.settings': 'Paramètres',
+    'tab.home': 'Accueil', 'tab.list': 'Liste', 'tab.calendar': 'Calendrier', 'tab.stats': 'Stats', 'tab.settings': 'Paramètres',
     'btn.save': 'Enregistrer', 'btn.cancel': 'Annuler', 'btn.delete': 'Supprimer', 'btn.back': 'Retour', 'btn.close': 'Fermer',
     'btn.add': 'Ajouter', 'btn.done': 'Terminé', 'btn.edit': 'Modifier', 'btn.next': 'Suivant', 'btn.agree': "J'accepte", 'btn.unlock': '🔓 Déverrouiller',
 
@@ -971,8 +978,6 @@ const STRINGS = {
     'stats.timeq12.body': "Yeux TAE ayant atteint un intervalle q12 : semaines médianes depuis la 1re injection, par produit.",
     'stats.capacity': 'Capacité',
     'stats.capacity.body': 'Yeux dus dans les 4 prochaines semaines, par jour.',
-    'stats.cost': 'Coûts',
-    'stats.cost.body': 'Coût unitaire × injections. Réglez les coûts dans Paramètres.',
     'stats.complications.detail': 'Suivi des complications',
     'stats.complications.body': 'Groupées par gravité. Comptes, taux pour 1 000 injections, détail au toucher.',
     'comp.sev.sight': 'Menace visuelle',
@@ -1010,8 +1015,6 @@ const STRINGS = {
     'settings.csv': 'CSV anonymisé (cohorte)',
     'settings.csv.body': "Exporte chaque injection en CSV, identifiants retirés (pseudonyme haché, âge en années, sans nom ni n° dossier). Compatible R, SPSS, Excel.",
     'settings.csv.btn': '⬇ Exporter le CSV anonymisé',
-    'settings.cost': 'Coût unitaire',
-    'settings.cost.body': "Utilisé par Stats → Coûts. Stocké localement.",
     'settings.demo.show': "Revoir l'introduction",
     'settings.terms': "Conditions d'utilisation",
     'settings.backup.never': "Aucune sauvegarde — exportez-en une.",
@@ -1042,7 +1045,7 @@ const STRINGS = {
     'terms.s1.h': '1. Ce qui est enregistré',
     'terms.s1.b': "Sur cet appareil uniquement (IndexedDB) : nom (Nom, Prénom), n° de dossier, date de naissance, notes ; par œil : diagnostic, produit, schéma, intervalle ; journal des injections (date, produit, œil, AV Snellen, CRT µm, PIO avant/après, complications, raison de changement, notes) ; captures OCT facultatives.",
     'terms.s2.h': "2. Fonctions IA (sur action explicite)",
-    'terms.s2.b': "Une fonction appelle Anthropic Claude (hébergé aux États-Unis) : numériser une photo du programme du jour pour extraire seulement les identifiants (nom, initiales, n° dossier). La consigne interdit tout contenu clinique. À utiliser avec consentement ou images dépersonnalisées.",
+    'terms.s2.b': "Deux fonctions facultatives appellent Anthropic Claude (hébergé aux États-Unis), chacune sur une action explicite : (a) numériser une photo du programme du jour pour extraire uniquement les identifiants (nom, initiales, n° dossier) — la consigne interdit tout contenu clinique ; (b) « Analyser avec IA » sur la page d'un patient, qui envoie une copie désidentifiée de son historique d'injections (âge en années, allergies, diagnostic/schéma/injections par œil avec dates, produits, AV, CRT, PIO, complications) — nom, n° dossier, DDN et notes libres sont retirés avant l'envoi. La sortie est présentée à des fins éducatives, pas comme une recommandation clinique. À utiliser avec consentement approprié.",
     'terms.s3.h': '3. Sauvegarde chiffrée',
     'terms.s3.b': "Exportez une sauvegarde AES-256-GCM/PBKDF2 (250 000 itérations) avec une phrase secrète. Sans cette phrase, les données ne peuvent pas être récupérées — pas même par nous.",
     'terms.s4.h': '4. Résumé courriel',
@@ -1065,7 +1068,7 @@ const STRINGS = {
     'demo.s4.h': 'Enregistrer une injection',
     'demo.s4.b': "Depuis une carte-œil → + Ajouter une injection. Date, médicament, AV Snellen, CRT, PIO avant/après, complications, prochain intervalle, et capture OCT facultative. Le plan de l'œil se met à jour automatiquement.",
     'demo.s5.h': 'Calendrier, rappels, stats',
-    'demo.s5.b': "Onglet Calendrier : grille mensuelle avec points colorés par produit. Appui long pour ajout rapide. Onglet Stats : répartitions, gain ETDRS, capacité, coûts, liste de rappel.",
+    'demo.s5.b': "Onglet Calendrier : grille mensuelle avec points colorés par produit. Appui long pour ajout rapide. Onglet Stats : répartitions, gain ETDRS, capacité, liste de rappel.",
     'demo.s6.h': '🔐 Vie privée + sauvegardes',
     'demo.s6.b': "Les données restent sur cet appareil. Paramètres → activez le verrou Face ID et exportez une sauvegarde chiffrée AES-256. Sans la phrase secrète, irrécupérable.",
   },
@@ -1138,6 +1141,11 @@ function snellenToLogMAR(s) {
   return Math.log10(den / num);
 }
 const logMarToLines = (delta) => delta / 0.1; // 1 line ≈ 0.1 logMAR
+function logMarToSnellen(lm) {
+  if (lm == null || !isFinite(lm)) return '—';
+  const den = Math.round(20 * Math.pow(10, lm));
+  return '20/' + den;
+}
 
 function emptyEye() {
   return {
@@ -1210,7 +1218,6 @@ const LAST_BACKUP_KEY = 'injectlog_last_backup_v1';
 const AUTOLOCK_KEY = 'injectlog_autolock_v1';
 const LOCK_PROMPT_KEY = 'injectlog_lock_prompted_v1';
 const RECALL_KEY = 'injectlog_recall_weeks_v1';
-const COSTS_KEY = 'injectlog_costs_v1';
 
 function getDigestEmail() { return localStorage.getItem(EMAIL_KEY) || ''; }
 function setDigestEmail(e) { localStorage.setItem(EMAIL_KEY, (e || '').trim()); }
@@ -1222,15 +1229,6 @@ function getRecallWeeks() {
 function setRecallWeeks(n) {
   const v = Math.max(4, Math.min(52, Math.round(Number(n) || RECALL_DEFAULT_WEEKS)));
   localStorage.setItem(RECALL_KEY, String(v));
-}
-function getCosts() {
-  try { return JSON.parse(localStorage.getItem(COSTS_KEY) || '{}'); }
-  catch { return {}; }
-}
-function setCost(drugKey, n) {
-  const c = getCosts();
-  c[drugKey] = isFinite(n) && n > 0 ? n : 0;
-  localStorage.setItem(COSTS_KEY, JSON.stringify(c));
 }
 function autoLockMinutes() {
   const v = Number(localStorage.getItem(AUTOLOCK_KEY));
@@ -1601,6 +1599,26 @@ async function dueLateCount() {
     return n;
   } catch { return 0; }
 }
+async function todaysPatientCount() {
+  try {
+    const patients = await db.listPatients();
+    const today = todayISO();
+    let n = 0;
+    for (const p of patients) {
+      ensurePatientShape(p);
+      const injs = await db.listInjections(p.id);
+      let any = false;
+      for (const ek of ['od','os']) {
+        const eye = { ...p.eyes[ek], _eyeKey: ek };
+        if (!eye.active) continue;
+        const s = eyeStatus(eye, injs, today);
+        if (s.status === 'due' || s.status === 'late' || s.nextDate === today) any = true;
+      }
+      if (any) n++;
+    }
+    return n;
+  } catch { return 0; }
+}
 async function refreshAppBadge() {
   if (typeof navigator === 'undefined' || typeof navigator.setAppBadge !== 'function') return;
   if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
@@ -1640,12 +1658,13 @@ const backBtn   = document.getElementById('back');
 const primaryBtn= document.getElementById('primary');
 const view      = document.getElementById('view');
 
-const TAB_DEST = { home: 'patients', calendar: 'calendar', stats: 'stats', settings: 'settings' };
+const TAB_DEST = { home: 'patients', list: 'list', calendar: 'calendar', stats: 'stats', settings: 'settings' };
 const VIEW_TO_TAB = {
   patients: 'home', patient: 'home', injection: 'home',
   'patient-stats': 'home',
+  list: 'list',
   calendar: 'calendar',
-  stats: 'stats', recall: 'stats', capacity: 'stats', cost: 'stats', complications: 'stats', 'letter-gain': 'stats', switching: 'stats',
+  stats: 'stats', recall: 'stats', capacity: 'stats', complications: 'stats', 'letter-gain': 'stats', switching: 'stats',
   settings: 'settings',
 };
 document.querySelectorAll('#tab-bar .tab').forEach(btn => {
@@ -1662,7 +1681,7 @@ backBtn.addEventListener('click', async () => {
   if (state.view === 'patient') fb('patients');
   else if (state.view === 'injection') fb('patient', { patientId: state.patientId });
   else if (state.view === 'patient-stats') fb('patient', { patientId: state.patientId });
-  else if (state.view === 'recall' || state.view === 'capacity' || state.view === 'cost' || state.view === 'complications' || state.view === 'letter-gain' || state.view === 'switching') fb('stats');
+  else if (state.view === 'recall' || state.view === 'capacity' || state.view === 'complications' || state.view === 'letter-gain' || state.view === 'switching') fb('stats');
   else fb('patients');
 });
 
@@ -1707,7 +1726,7 @@ async function render() {
   primaryBtn.style.display = 'none';
   primaryBtn.textContent = '';
   primaryBtn.onclick = null;
-  const rootViews = ['patients', 'calendar', 'stats', 'settings'];
+  const rootViews = ['patients', 'list', 'calendar', 'stats', 'settings'];
   backBtn.style.display = rootViews.includes(state.view) ? 'none' : 'inline-block';
 
   const credit = document.getElementById('footer-credit');
@@ -1726,11 +1745,11 @@ async function render() {
   if (state.view === 'patient')         return renderPatient();
   if (state.view === 'injection')       return renderInjection();
   if (state.view === 'patient-stats')   return renderPatientStats();
+  if (state.view === 'list')            return renderList();
   if (state.view === 'calendar')        return renderCalendar();
   if (state.view === 'stats')           return renderStats();
   if (state.view === 'recall')          return renderRecall();
   if (state.view === 'capacity')        return renderCapacity();
-  if (state.view === 'cost')            return renderCost();
   if (state.view === 'complications')   return renderComplications();
   if (state.view === 'letter-gain')     return renderLetterGain();
   if (state.view === 'switching')       return renderSwitchingAnalysis();
@@ -1740,6 +1759,7 @@ async function refreshTabBar() {
   const bar = document.getElementById('tab-bar');
   if (!bar) return;
   document.getElementById('tl-home').textContent     = t('tab.home');
+  document.getElementById('tl-list').textContent     = t('tab.list');
   document.getElementById('tl-calendar').textContent = t('tab.calendar');
   document.getElementById('tl-stats').textContent    = t('tab.stats');
   document.getElementById('tl-settings').textContent = t('tab.settings');
@@ -1751,6 +1771,13 @@ async function refreshTabBar() {
   if (homeTab && badge) {
     if (count > 0) { badge.textContent = String(count); homeTab.classList.add('has-badge'); }
     else { homeTab.classList.remove('has-badge'); }
+  }
+  const listTab = bar.querySelector('.tab[data-tab="list"]');
+  const listBadge = document.getElementById('tb-list');
+  if (listTab && listBadge) {
+    const todayCount = await todaysPatientCount();
+    if (todayCount > 0) { listBadge.textContent = String(todayCount); listTab.classList.add('has-badge'); }
+    else { listTab.classList.remove('has-badge'); }
   }
   bar.style.display = '';
   document.body.classList.add('has-tab-bar');
@@ -1905,14 +1932,28 @@ async function renderPatients() {
         : `${enriched.length} patient${enriched.length > 1 ? 's' : ''} on file. Open the search above or pick a chip to show the list.`)}</p>
     </div>`;
 
+  if (!state.patientFilterOpen) state.patientFilterOpen = { status: false, drug: false, indication: false, duration: false };
+  const statusLabel = ({ all: fr ? 'Tous' : 'All', due: t('status.due'), late: t('status.late'), future: t('status.future') })[f.status];
+  const drugLabelSub = f.drug === 'all' ? (fr ? 'Tous' : 'All') : drugLabel(f.drug);
+  const indLabelSub = f.indication === 'all' ? (fr ? 'Toutes' : 'All') : indicationLabel(f.indication);
+  const durLabel = ({
+    all:  fr ? 'Toutes' : 'Any',
+    lt1:  fr ? '< 1 an' : '< 1 yr',
+    '1to3': '1–3 ' + (fr ? 'ans' : 'yr'),
+    '3to5': '3–5 ' + (fr ? 'ans' : 'yr'),
+    gte5: '≥ 5 ' + (fr ? 'ans' : 'yr'),
+    none: fr ? 'Jamais injecté' : 'Naive',
+  })[f.duration];
+  const subToggle = (id, head, sub, body) => `
+    <div class="section-toggle ${state.patientFilterOpen[id] ? 'open' : ''}" data-subfilter="${id}" style="margin: 0 4px;">
+      <div class="toggle-head" style="padding:8px 4px; font-size:14px;"><span class="caret">›</span><span>${escapeHtml(head)}</span><span class="sub">${escapeHtml(sub)}</span></div>
+      <div class="toggle-body">${body}</div>
+    </div>`;
+
   view.innerHTML = `
     <div style="display:flex; align-items:center; gap:8px; margin: 4px 4px 10px;">
       ${due > 0 ? `<span class="status-badge due">${escapeHtml(tF('patient.due.today', { n: due }))}</span>` : ''}
       ${late > 0 ? `<span class="status-badge late">${escapeHtml(tF('patient.late', { n: late }))}</span>` : ''}
-    </div>
-    <div class="btn-row" style="display:flex; gap:8px; margin-bottom:10px;">
-      <button id="import-btn" class="btn-secondary" style="flex:1;">${escapeHtml(t('patients.import'))}</button>
-      <input id="import-photo" type="file" accept="image/*" style="display:none;">
     </div>
     ${emailBtn}
 
@@ -1922,31 +1963,38 @@ async function renderPatients() {
         <label class="field">
           <input id="ps-q" type="search" placeholder="${escapeAttr(t('patients.search.ph'))}" value="${escapeAttr(state.patientSearch || '')}" autocapitalize="none" autocomplete="off">
         </label>
-        <div class="chip-grid" style="margin-bottom:10px;">
-          ${[['all', fr ? 'Tous' : 'All status'], ['due', t('status.due')], ['late', t('status.late')], ['future', t('status.future')]].map(([k, lab]) => `
-            <button type="button" class="chip ${f.status === k ? 'selected' : ''}" data-filter-status="${k}">${escapeHtml(lab)}</button>
-          `).join('')}
-        </div>
-        <div class="chip-grid" style="margin-bottom:10px;">
-          <button type="button" class="chip ${f.drug === 'all' ? 'selected' : ''}" data-filter-drug="all">${escapeHtml(fr ? 'Tous produits' : 'All drugs')}</button>
-          ${DRUGS.filter(d => d.key !== 'other').map(d => `<button type="button" class="chip ${f.drug === d.key ? 'selected' : ''}" data-filter-drug="${d.key}" style="${f.drug === d.key ? 'background:' + d.color + ';color:#fff;' : ''}">${escapeHtml(fr ? d.fr : d.en)}</button>`).join('')}
-        </div>
-        <div class="chip-grid" style="margin-bottom:10px;">
-          <button type="button" class="chip ${f.indication === 'all' ? 'selected' : ''}" data-filter-ind="all">${escapeHtml(fr ? 'Toutes indic.' : 'All indications')}</button>
-          ${INDICATIONS.filter(i => i.key !== 'other').map(i => `<button type="button" class="chip ${f.indication === i.key ? 'selected' : ''}" data-filter-ind="${i.key}">${escapeHtml(fr ? i.fr : i.en)}</button>`).join('')}
-        </div>
-        <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; margin: 4px 4px 4px;">${escapeHtml(fr ? 'Durée de traitement' : 'Treatment duration')}</div>
-        <div class="chip-grid" style="margin-bottom:14px;">
-          ${[
-            ['all',  fr ? 'Toutes' : 'Any'],
-            ['lt1',  fr ? '< 1 an' : '< 1 yr'],
-            ['1to3', '1–3 ' + (fr ? 'ans' : 'yr')],
-            ['3to5', '3–5 ' + (fr ? 'ans' : 'yr')],
-            ['gte5', '≥ 5 ' + (fr ? 'ans' : 'yr')],
-            ['none', fr ? 'Jamais injecté' : 'Naive'],
-          ].map(([k, lab]) => `<button type="button" class="chip ${f.duration === k ? 'selected' : ''}" data-filter-dur="${k}">${escapeHtml(lab)}</button>`).join('')}
-        </div>
-        ${hasFilter ? `<button id="ps-clear" class="btn-ghost" style="font-size:12px; padding:6px 10px;">${escapeHtml(fr ? '↺ Réinitialiser' : '↺ Reset filters')}</button>` : ''}
+        ${subToggle('status', fr ? 'Statut' : 'Status', statusLabel, `
+          <div class="chip-grid" style="margin-bottom:6px;">
+            ${[['all', fr ? 'Tous' : 'All'], ['due', t('status.due')], ['late', t('status.late')], ['future', t('status.future')]].map(([k, lab]) => `
+              <button type="button" class="chip ${f.status === k ? 'selected' : ''}" data-filter-status="${k}">${escapeHtml(lab)}</button>
+            `).join('')}
+          </div>
+        `)}
+        ${subToggle('drug', fr ? 'Produit' : 'Drug', drugLabelSub, `
+          <div class="chip-grid" style="margin-bottom:6px;">
+            <button type="button" class="chip ${f.drug === 'all' ? 'selected' : ''}" data-filter-drug="all">${escapeHtml(fr ? 'Tous' : 'All')}</button>
+            ${DRUGS.filter(d => d.key !== 'other').map(d => `<button type="button" class="chip ${f.drug === d.key ? 'selected' : ''}" data-filter-drug="${d.key}" style="${f.drug === d.key ? 'background:' + d.color + ';color:#fff;' : ''}">${escapeHtml(fr ? d.fr : d.en)}</button>`).join('')}
+          </div>
+        `)}
+        ${subToggle('indication', fr ? 'Indication' : 'Indication', indLabelSub, `
+          <div class="chip-grid" style="margin-bottom:6px;">
+            <button type="button" class="chip ${f.indication === 'all' ? 'selected' : ''}" data-filter-ind="all">${escapeHtml(fr ? 'Toutes' : 'All')}</button>
+            ${INDICATIONS.filter(i => i.key !== 'other').map(i => `<button type="button" class="chip ${f.indication === i.key ? 'selected' : ''}" data-filter-ind="${i.key}">${escapeHtml(fr ? i.fr : i.en)}</button>`).join('')}
+          </div>
+        `)}
+        ${subToggle('duration', fr ? 'Durée de traitement' : 'Treatment duration', durLabel, `
+          <div class="chip-grid" style="margin-bottom:6px;">
+            ${[
+              ['all',  fr ? 'Toutes' : 'Any'],
+              ['lt1',  fr ? '< 1 an' : '< 1 yr'],
+              ['1to3', '1–3 ' + (fr ? 'ans' : 'yr')],
+              ['3to5', '3–5 ' + (fr ? 'ans' : 'yr')],
+              ['gte5', '≥ 5 ' + (fr ? 'ans' : 'yr')],
+              ['none', fr ? 'Jamais injecté' : 'Naive'],
+            ].map(([k, lab]) => `<button type="button" class="chip ${f.duration === k ? 'selected' : ''}" data-filter-dur="${k}">${escapeHtml(lab)}</button>`).join('')}
+          </div>
+        `)}
+        ${hasFilter ? `<button id="ps-clear" class="btn-ghost" style="font-size:12px; padding:6px 10px; margin-top:8px;">${escapeHtml(fr ? '↺ Réinitialiser' : '↺ Reset filters')}</button>` : ''}
       </div>
     </div>
 
@@ -1957,6 +2005,14 @@ async function renderPatients() {
     searchToggle.classList.toggle('open');
     state.patientSearchOpen = searchToggle.classList.contains('open');
   };
+  view.querySelectorAll('[data-subfilter]').forEach(box => {
+    box.querySelector('.toggle-head').onclick = (e) => {
+      e.stopPropagation();
+      const id = box.dataset.subfilter;
+      state.patientFilterOpen[id] = !state.patientFilterOpen[id];
+      box.classList.toggle('open');
+    };
+  });
   const psQ = document.getElementById('ps-q');
   if (psQ) {
     psQ.addEventListener('input', (e) => {
@@ -1977,8 +2033,6 @@ async function renderPatients() {
   view.querySelectorAll('.row[data-pid]').forEach(r => {
     r.onclick = () => go('patient', { patientId: r.dataset.pid });
   });
-  document.getElementById('import-btn').onclick = () => document.getElementById('import-photo').click();
-  document.getElementById('import-photo').onchange = (e) => handleImportSchedule(e.target.files?.[0]);
   const eb = document.getElementById('email-today');
   if (eb) eb.onclick = () => emailTodaysList(enriched);
 }
@@ -2231,7 +2285,7 @@ async function _seedInjectionsForEye(patientId, eyeKey, eye) {
       const others = DRUGS.filter(d => d.key !== currentDrug && d.key !== 'other');
       currentDrug = seedPick(others).key;
       switchReason = seedPickWeighted([
-        ['durability',35],['partial',25],['no-response',15],['tachyphylaxis',10],['cost',8],['adverse',4],['patient',3],
+        ['durability',38],['partial',27],['no-response',16],['tachyphylaxis',11],['adverse',5],['patient',3],
       ]);
     }
     if (eye.regimen === 'tae' && i > 0) {
@@ -2348,10 +2402,14 @@ async function renderPatient() {
     const c = drug(eye.drug).color;
     const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
     const eyeInjAsc = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    const eyeInj = injs.filter(i => i.eye === eyeKey).slice(0, 5);
     const tachy = isTachyphylaxis(eyeInjAsc);
+    // Faint blue (OD) / faint yellow (OS) backgrounds so eyes are
+    // immediately distinguishable at a glance.
+    const tint = eyeKey === 'od'
+      ? 'background:rgba(10,107,255,0.05); border-color:rgba(10,107,255,0.25);'
+      : 'background:rgba(245,158,11,0.07); border-color:rgba(245,158,11,0.30);';
     return `
-      <div class="eye-card" data-eye="${eyeKey}">
+      <div class="eye-card" data-eye="${eyeKey}" style="${tint}">
         <div class="eye-head">
           <span class="eye-label">${escapeHtml(eyeLabel)}</span>
           ${eye.active
@@ -2369,18 +2427,6 @@ async function renderPatient() {
             <strong>${escapeHtml(t('eye.last'))}:</strong> ${s.lastDate ? escapeHtml(fmtDate(s.lastDate)) : escapeHtml(t('eye.last.never'))}
             ${s.loadingTarget ? `<br><strong>${escapeHtml(t('eye.loading.target'))}:</strong> ${s.loadingDone}/${s.loadingTarget}` : ''}
           </p>
-          ${eyeInj.length ? `
-            <div style="border-top:1px solid var(--separator); padding-top:8px; margin: 8px 0;">
-              ${eyeInj.map(i => `
-                <div class="row" data-iid="${i.id}" style="padding:6px 4px;">
-                  <span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(drugLabel(i.drug))}</span>
-                  <div class="meta">
-                    <h3 style="font-size:13px;">${escapeHtml(fmtDate(i.date))}</h3>
-                  </div>
-                  <div class="chev">›</div>
-                </div>`).join('')}
-            </div>` : ''}
-          ${drugSwitchTimelineHtml(injs.filter(i => i.eye === eyeKey))}
           <button class="btn-block" data-action="add-injection" data-eye="${eyeKey}">${escapeHtml(t('eye.add.injection'))}</button>
           <button class="btn-ghost" data-action="edit-eye" data-eye="${eyeKey}" style="margin-top:6px; width:100%;">${escapeHtml(t('btn.edit'))} ${escapeHtml(eyeLabel)}</button>
         ` : `
@@ -2434,6 +2480,36 @@ async function renderPatient() {
       </div>
     </div>` : '';
 
+  // Combined Visits toggle for both eyes, sorted reverse-chron. Each row
+  // is tappable and lands on the injection editor. Closed by default so
+  // the patient page stays calm.
+  const allInjDesc = injs.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (state.patientVisitsOpen == null) state.patientVisitsOpen = false;
+  const visitsToggle = `
+    <div class="section-toggle ${state.patientVisitsOpen ? 'open' : ''}" id="pv-visits">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(fr ? 'Visites' : 'Visits')}</span><span class="sub">${allInjDesc.length}</span></div>
+      <div class="toggle-body">
+        ${allInjDesc.length ? `<div class="card list">
+          ${allInjDesc.map(i => {
+            const eyeTint = i.eye === 'od' ? 'rgba(10,107,255,0.06)' : 'rgba(245,158,11,0.08)';
+            return `
+              <div class="row" data-iid="${i.id}" style="background:${eyeTint};">
+                <span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(i.eye.toUpperCase())} · ${escapeHtml(drugLabel(i.drug))}</span>
+                <div class="meta">
+                  <h3 style="font-size:14px;">${escapeHtml(fmtDate(i.date))}</h3>
+                  <p style="font-size:12px;">${escapeHtml((i.vaSnellen || ''))}${i.vaSnellen && i.crtUm ? ' · ' : ''}${typeof i.crtUm === 'number' ? `CRT ${i.crtUm} µm` : ''}${i.octPhoto ? ' · 📷' : ''}</p>
+                </div>
+                <div class="chev">›</div>
+              </div>`;
+          }).join('')}
+        </div>` : `<p style="color:var(--text3); font-size:13px; text-align:center; padding:10px 0; margin:0;">${escapeHtml(fr ? 'Aucune visite' : 'No visits')}</p>`}
+      </div>
+    </div>`;
+
+  // AI analysis button — only when we have something to send.
+  const aiButton = (injs.length || patient.notes) ? `
+    <button id="pv-ai" class="btn-secondary" style="margin: 10px 0;">${escapeHtml(fr ? '🧠 Analyser avec IA' : '🧠 Analyse with AI')}</button>` : '';
+
   view.innerHTML = `
     <div class="card">
       <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin:0 0 4px;">${escapeHtml(formatPatientName(patient))}</h2>
@@ -2447,11 +2523,12 @@ async function renderPatient() {
       </div>
     </div>
     ${nextHighlight}
+    ${aiButton}
     ${allergies.length ? `
       <div class="card" style="background:rgba(220,38,38,0.08); border-color:rgba(220,38,38,0.35); display:flex; align-items:center; gap:10px;">
         <span style="font-size:20px;">⚠</span>
         <div>
-          <div style="font-size:12px; color:#991B1B; text-transform:uppercase; letter-spacing:0.04em; font-weight:700;">${escapeHtml(getLang() === 'fr' ? 'Allergies / intolérances' : 'Allergies / intolerances')}</div>
+          <div style="font-size:12px; color:#991B1B; text-transform:uppercase; letter-spacing:0.04em; font-weight:700;">${escapeHtml(fr ? 'Allergies / intolérances' : 'Allergies / intolerances')}</div>
           <div style="font-size:14px; color:var(--text); margin-top:2px;">${allergies.map(k => `<span class="drug-pill" style="background:${drug(k).color}; margin-right:4px;">${escapeHtml(drugLabel(k))}</span>`).join(' ')}</div>
         </div>
       </div>` : ''}
@@ -2459,6 +2536,7 @@ async function renderPatient() {
       ${eyeCardHtml('od')}
       ${eyeCardHtml('os')}
     </div>
+    ${visitsToggle}
     <div style="margin-top:18px;">
       <button id="delete-patient" class="btn-danger">${escapeHtml(t('btn.delete'))}</button>
     </div>`;
@@ -2481,6 +2559,15 @@ async function renderPatient() {
   view.querySelectorAll('.row[data-iid]').forEach(r => {
     r.onclick = () => go('injection', { patientId: patient.id, injectionId: r.dataset.iid });
   });
+  const visitsToggleEl = document.getElementById('pv-visits');
+  if (visitsToggleEl) {
+    visitsToggleEl.querySelector('.toggle-head').onclick = () => {
+      visitsToggleEl.classList.toggle('open');
+      state.patientVisitsOpen = visitsToggleEl.classList.contains('open');
+    };
+  }
+  const aiBtn = document.getElementById('pv-ai');
+  if (aiBtn) aiBtn.onclick = () => analysePatientWithAi(patient, injs);
 }
 
 function vaSparkSvg(eyeInjections) {
@@ -2886,11 +2973,9 @@ async function renderPatientStats() {
   titleEl.textContent = t('pstats.title');
   primaryBtn.style.display = 'none';
 
-  // Per-eye zoom + table-open state lives on the in-memory state object
-  // so it persists across re-renders within the same patient-stats visit.
-  if (!state.tlZoom) state.tlZoom = {};
-  if (!state.tlOffset) state.tlOffset = {};
-  if (!state.tlTableOpen) state.tlTableOpen = {};
+  // Table-open state persists per eye for this patient-stats visit.
+  // Default is OPEN (user wanted auto-expand).
+  if (!state.tlTableOpen) state.tlTableOpen = { od: true, os: true };
 
   const eyeStats = (eyeKey) => {
     const list = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2935,20 +3020,28 @@ async function renderPatientStats() {
     return `<span style="color:${color}; font-family:var(--serif); font-size:18px;">${escapeHtml(s.baselineVAStr)} <span style="color:var(--text3); font-size:14px;">→</span> ${escapeHtml(s.latestVAStr)}</span>`;
   };
 
-  const visitsTable = (eyeKey, list) => {
-    const desc = list.slice().reverse();
+  const visitsTable = (eyeKey, listAsc) => {
+    // listAsc is oldest → newest; intervals are computed against the prior
+    // injection (in ASC order), then the table is rendered DESC.
+    const withInterval = listAsc.map((i, idx) => {
+      const prev = listAsc[idx - 1];
+      const weeks = prev ? (daysBetween(prev.date, i.date) / 7) : null;
+      return { ...i, intervalWeeks: weeks };
+    }).reverse();
     return `
       <table style="width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums;">
         <thead><tr style="text-align:left; color:var(--text3); font-weight:600;">
           <th style="padding:4px 6px 4px 0;">${escapeHtml(fr ? 'Date' : 'Date')}</th>
+          <th style="padding:4px 6px;">${escapeHtml(fr ? 'Interv.' : 'Interv.')}</th>
           <th style="padding:4px 6px;">${escapeHtml(fr ? 'Produit' : 'Drug')}</th>
           <th style="padding:4px 6px;">VA</th>
           <th style="padding:4px 6px;">CRT</th>
         </tr></thead>
         <tbody>
-          ${desc.map(i => `
+          ${withInterval.map(i => `
             <tr style="border-top:1px solid var(--separator);">
               <td style="padding:5px 6px 5px 0;">${escapeHtml(fmtDate(i.date))}</td>
+              <td style="padding:5px 6px; color:var(--text3);">${i.intervalWeeks != null ? i.intervalWeeks.toFixed(1) + ' w' : '—'}</td>
               <td style="padding:5px 6px;"><span class="drug-pill" style="background:${drug(i.drug).color}; flex:0 0 auto;">${escapeHtml(drugLabel(i.drug))}</span></td>
               <td style="padding:5px 6px;">${escapeHtml(i.vaSnellen || '—')}</td>
               <td style="padding:5px 6px;">${typeof i.crtUm === 'number' ? i.crtUm + ' µm' : '—'}</td>
@@ -2957,12 +3050,16 @@ async function renderPatientStats() {
       </table>`;
   };
 
+  // Faint blue background for OD card, faint yellow for OS card so eyes
+  // are visually unmistakable. Borders match the same hue, intensified.
+  const eyeStyle = (eyeKey) => eyeKey === 'od'
+    ? 'background:rgba(10,107,255,0.05); border-color:rgba(10,107,255,0.25);'
+    : 'background:rgba(245,158,11,0.07); border-color:rgba(245,158,11,0.30);';
+
   const card = (eyeKey, s, list) => {
-    const zoom = state.tlZoom[eyeKey] || 1;
-    const offset = state.tlOffset[eyeKey] || 0;
-    const tableOpen = !!state.tlTableOpen[eyeKey];
+    const tableOpen = state.tlTableOpen[eyeKey] !== false; // default open
     return `
-      <div class="card" style="margin-bottom:10px;">
+      <div class="card" style="margin-bottom:10px; ${eyeStyle(eyeKey)}">
         <h3 style="font-family:var(--serif); margin:0 0 8px; font-size:16px;">${escapeHtml(eyeKey === 'od' ? t('eye.od') : t('eye.os'))}</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px;">
           <div><div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.injections'))}</div><div style="font-family:var(--serif); font-size:22px;">${s.count || 0}</div></div>
@@ -2976,15 +3073,9 @@ async function renderPatientStats() {
           <div style="margin-top:12px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
               <div style="color:var(--text3); font-size:11px; text-transform:uppercase;">${escapeHtml(t('pstats.timeline'))}</div>
-              <div style="display:flex; gap:4px;">
-                <button class="btn-ghost" data-tl-zoom-out="${eyeKey}" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 ? 'disabled' : ''}>−</button>
-                <button class="btn-ghost" data-tl-zoom-in="${eyeKey}" style="padding:2px 8px; font-size:14px;" ${zoom >= 8 ? 'disabled' : ''}>+</button>
-                <button class="btn-ghost" data-tl-pan="${eyeKey}" data-dir="-1" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 || offset <= 0 ? 'disabled' : ''}>‹</button>
-                <button class="btn-ghost" data-tl-pan="${eyeKey}" data-dir="1" style="padding:2px 8px; font-size:14px;" ${zoom <= 1 || offset >= 1 - 1 / zoom - 0.001 ? 'disabled' : ''}>›</button>
-                <button class="btn-ghost" data-tl-reset="${eyeKey}" style="padding:2px 8px; font-size:11px;" ${zoom === 1 && offset === 0 ? 'disabled' : ''}>${escapeHtml(fr ? 'Réinit.' : 'Reset')}</button>
-              </div>
+              <div style="font-size:10px; color:var(--text3);">${escapeHtml(fr ? 'Toucher pour agrandir' : 'Tap to expand')}</div>
             </div>
-            ${combinedTimelineSvg(list, { zoom, offset })}
+            <div data-tl-open="${eyeKey}" style="cursor:zoom-in;">${combinedTimelineSvg(list)}</div>
           </div>
           <div class="section-toggle ${tableOpen ? 'open' : ''}" data-tl-table="${eyeKey}" style="margin-top:8px;">
             <div class="toggle-head" style="padding:8px 4px;"><span class="caret">›</span><span style="font-size:14px;">${escapeHtml(fr ? 'Visites (récent → ancien)' : 'Visits (recent → oldest)')}</span><span class="sub">${list.length}</span></div>
@@ -2998,36 +3089,8 @@ async function renderPatientStats() {
     ${card('os', os, osInj)}
     <p style="font-size:11px; color:var(--text3); line-height:1.4; margin: 4px 4px 12px;">${escapeHtml(t('pstats.timeline.legend'))}</p>`;
 
-  view.querySelectorAll('[data-tl-zoom-in]').forEach(btn => btn.onclick = () => {
-    const k = btn.dataset.tlZoomIn;
-    state.tlZoom[k] = Math.min(8, (state.tlZoom[k] || 1) * 2);
-    // Keep the right edge anchored when zooming in.
-    const z = state.tlZoom[k];
-    const maxOffset = Math.max(0, 1 - 1 / z);
-    state.tlOffset[k] = Math.min(maxOffset, (state.tlOffset[k] || 0) + (maxOffset - (state.tlOffset[k] || 0)) * 0.5);
-    renderPatientStats();
-  });
-  view.querySelectorAll('[data-tl-zoom-out]').forEach(btn => btn.onclick = () => {
-    const k = btn.dataset.tlZoomOut;
-    state.tlZoom[k] = Math.max(1, (state.tlZoom[k] || 1) / 2);
-    const z = state.tlZoom[k];
-    const maxOffset = Math.max(0, 1 - 1 / z);
-    state.tlOffset[k] = Math.min(maxOffset, state.tlOffset[k] || 0);
-    renderPatientStats();
-  });
-  view.querySelectorAll('[data-tl-pan]').forEach(btn => btn.onclick = () => {
-    const k = btn.dataset.tlPan;
-    const dir = Number(btn.dataset.dir);
-    const z = state.tlZoom[k] || 1;
-    const step = (1 / z) * 0.4;
-    const maxOffset = Math.max(0, 1 - 1 / z);
-    state.tlOffset[k] = Math.max(0, Math.min(maxOffset, (state.tlOffset[k] || 0) + step * dir));
-    renderPatientStats();
-  });
-  view.querySelectorAll('[data-tl-reset]').forEach(btn => btn.onclick = () => {
-    const k = btn.dataset.tlReset;
-    state.tlZoom[k] = 1; state.tlOffset[k] = 0;
-    renderPatientStats();
+  view.querySelectorAll('[data-tl-open]').forEach(box => {
+    box.onclick = () => openTimelineModal(box.dataset.tlOpen, box.dataset.tlOpen === 'od' ? odInj : osInj);
   });
   view.querySelectorAll('[data-tl-table]').forEach(box => {
     box.querySelector('.toggle-head').onclick = () => {
@@ -3038,15 +3101,88 @@ async function renderPatientStats() {
   });
 }
 
-// Combined per-eye timeline. Single SVG: CRT line (left axis, blue), VA
-// (Snellen logMAR) line dashed (right axis, lower = better), drug-coloured
+// Fullscreen timeline modal with zoom + pan. Opens when the user taps the
+// inline timeline. Zoom levels 1×–8×; pan once zoomed; reset button.
+function openTimelineModal(eyeKey, list) {
+  if (!list || !list.length) return;
+  const fr = getLang() === 'fr';
+  const state2 = { zoom: 1, offset: 0 };
+  const el = document.createElement('div');
+  el.className = 'fs-overlay';
+  const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
+  const draw = () => {
+    const z = state2.zoom;
+    const maxOff = Math.max(0, 1 - 1 / z);
+    el.querySelector('#tl-svg').innerHTML = combinedTimelineSvg(list, {
+      zoom: z, offset: state2.offset, W: 600, H: 360, alwaysLabel: true,
+    });
+    el.querySelector('#tl-zo').disabled = z <= 1;
+    el.querySelector('#tl-zi').disabled = z >= 8;
+    el.querySelector('#tl-pl').disabled = z <= 1 || state2.offset <= 0;
+    el.querySelector('#tl-pr').disabled = z <= 1 || state2.offset >= maxOff - 0.001;
+    el.querySelector('#tl-reset').disabled = z === 1 && state2.offset === 0;
+    el.querySelector('#tl-label').textContent = `${z.toFixed(0)}×`;
+  };
+  el.innerHTML = `
+    <header>
+      <button id="tl-cancel" class="btn-ghost" style="padding:6px 10px;">${escapeHtml(t('btn.close'))}</button>
+      <h2>${escapeHtml(fr ? 'Chronologie' : 'Timeline')} · ${escapeHtml(eyeLabel)}</h2>
+    </header>
+    <main style="padding:14px;">
+      <div id="tl-svg" style="background:var(--surface); border:1px solid var(--separator); border-radius:10px; padding:6px;"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:8px;">
+        <button id="tl-zo" class="btn-ghost" style="padding:8px 14px; font-size:18px;">−</button>
+        <span id="tl-label" style="font-family:var(--serif); font-size:16px; min-width:40px; text-align:center;">1×</span>
+        <button id="tl-zi" class="btn-ghost" style="padding:8px 14px; font-size:18px;">+</button>
+        <button id="tl-pl" class="btn-ghost" style="padding:8px 14px; font-size:18px;">‹</button>
+        <button id="tl-pr" class="btn-ghost" style="padding:8px 14px; font-size:18px;">›</button>
+        <button id="tl-reset" class="btn-ghost" style="padding:8px 12px; font-size:12px;">${escapeHtml(fr ? 'Réinit.' : 'Reset')}</button>
+      </div>
+      <p style="font-size:11px; color:var(--text3); line-height:1.4; margin: 14px 4px 0;">${escapeHtml(t('pstats.timeline.legend'))}</p>
+    </main>`;
+  document.body.appendChild(el);
+  draw();
+  el.querySelector('#tl-cancel').onclick = () => el.remove();
+  el.querySelector('#tl-zi').onclick = () => {
+    state2.zoom = Math.min(8, state2.zoom * 2);
+    const maxOff = Math.max(0, 1 - 1 / state2.zoom);
+    state2.offset = Math.min(maxOff, state2.offset + (maxOff - state2.offset) * 0.5);
+    draw();
+  };
+  el.querySelector('#tl-zo').onclick = () => {
+    state2.zoom = Math.max(1, state2.zoom / 2);
+    const maxOff = Math.max(0, 1 - 1 / state2.zoom);
+    state2.offset = Math.min(maxOff, state2.offset);
+    draw();
+  };
+  el.querySelector('#tl-pl').onclick = () => {
+    const step = (1 / state2.zoom) * 0.4;
+    state2.offset = Math.max(0, state2.offset - step);
+    draw();
+  };
+  el.querySelector('#tl-pr').onclick = () => {
+    const step = (1 / state2.zoom) * 0.4;
+    const maxOff = Math.max(0, 1 - 1 / state2.zoom);
+    state2.offset = Math.min(maxOff, state2.offset + step);
+    draw();
+  };
+  el.querySelector('#tl-reset').onclick = () => {
+    state2.zoom = 1; state2.offset = 0; draw();
+  };
+}
+
+// Combined per-eye timeline. Single SVG: CRT line (left axis, blue),
+// Snellen VA line dashed (right axis — labelled as 20/X), drug-coloured
 // dots per injection, vertical lines at drug switches, ⚠ at complications.
 // `opts.zoom` (1..8) and `opts.offset` (0..1-1/zoom) restrict the time
-// window so the user can drill into a busy stretch.
+// window. `opts.alwaysLabel` forces per-dot value labels even when there
+// are many visits — used by the expanded zoom modal.
 function combinedTimelineSvg(list, opts = {}) {
   const zoom = Math.max(1, opts.zoom || 1);
   const offset = Math.max(0, Math.min(1 - 1 / zoom, opts.offset || 0));
-  const W = 340, H = 220, padL = 36, padR = 36, padT = 16, padB = 28;
+  const W = opts.W || 340;
+  const H = opts.H || 220;
+  const padL = 40, padR = 56, padT = 16, padB = 28;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const tFirst = new Date(list[0].date).getTime();
   const tLast = new Date(list[list.length - 1].date).getTime() || (tFirst + 1);
@@ -3100,8 +3236,9 @@ function combinedTimelineSvg(list, opts = {}) {
   for (let i = 1; i < visible.length; i++) {
     if (visible[i].drug !== visible[i - 1].drug) switches.push(visible[i]);
   }
-  // Draw dots on the CRT curve (when present) or the VA curve. Stagger
-  // labels above/below the dot so they don't overlap each other.
+  // Per-dot value labels: skip when there are too many visits in the
+  // window (too condensed). The expanded modal sets alwaysLabel=true.
+  const showLabels = opts.alwaysLabel || visible.length <= 5;
   const dotsAndLabels = visible.map((i, idx) => {
     const x = xFor(i.date);
     const xs = x.toFixed(1);
@@ -3110,11 +3247,13 @@ function combinedTimelineSvg(list, opts = {}) {
     const y = (cy ?? vy ?? (padT + innerH / 2));
     const ys = y.toFixed(1);
     let labels = '';
-    if (typeof i.crtUm === 'number' && cy != null) {
-      labels += `<text x="${xs}" y="${(cy - 5).toFixed(1)}" font-size="9" fill="var(--signal)" text-anchor="middle" font-weight="600">${i.crtUm}</text>`;
-    }
-    if (i.vaSnellen && vy != null) {
-      labels += `<text x="${xs}" y="${(vy + 11).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="middle">${escapeHtml(i.vaSnellen)}</text>`;
+    if (showLabels) {
+      if (typeof i.crtUm === 'number' && cy != null) {
+        labels += `<text x="${xs}" y="${(cy - 5).toFixed(1)}" font-size="9" fill="var(--signal)" text-anchor="middle" font-weight="600">${i.crtUm}</text>`;
+      }
+      if (i.vaSnellen && vy != null) {
+        labels += `<text x="${xs}" y="${(vy + 11).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="middle">${escapeHtml(i.vaSnellen)}</text>`;
+      }
     }
     return `${labels}<circle cx="${xs}" cy="${ys}" r="3.5" fill="${drug(i.drug).color}" stroke="white" stroke-width="0.8"/>`;
   }).join('');
@@ -3128,7 +3267,7 @@ function combinedTimelineSvg(list, opts = {}) {
   }).join('');
   const firstLabel = visible.length ? fmtDate(visible[0].date) : '';
   const lastLabel = visible.length ? fmtDate(visible[visible.length - 1].date) : '';
-  // Y-axis ticks (3 each side: min / mid / max)
+  // Y-axis ticks: 3 each side (min / mid / max). Right axis is Snellen.
   const axisTicks = (mn, mx, fmt, side) => {
     const mid = (mn + mx) / 2;
     const x = side === 'left' ? 2 : W - 2;
@@ -3151,9 +3290,9 @@ function combinedTimelineSvg(list, opts = {}) {
       <text x="${padL}" y="${H - 14}" font-size="9" fill="var(--text3)">${escapeHtml(firstLabel)}</text>
       <text x="${W - padR}" y="${H - 14}" font-size="9" fill="var(--text3)" text-anchor="end">${escapeHtml(lastLabel)}</text>
       <text x="${padL}" y="${H - 4}" font-size="8" fill="var(--signal)">CRT (µm)</text>
-      <text x="${W - padR}" y="${H - 4}" font-size="8" fill="var(--text2)" text-anchor="end">logMAR</text>
+      <text x="${W - padR + 4}" y="${H - 4}" font-size="8" fill="var(--text2)">Snellen</text>
       ${haveCrt.length ? axisTicks(crtMin, crtMax, (v) => Math.round(v), 'left') : ''}
-      ${haveVa.length ? axisTicks(vaMin, vaMax, (v) => v.toFixed(2), 'right') : ''}
+      ${haveVa.length ? axisTicks(vaMin, vaMax, (v) => logMarToSnellen(v), 'right') : ''}
     </svg>`;
 }
 
@@ -3423,6 +3562,89 @@ async function quickAddOnDate(iso) {
 }
 
 /* =====================================================================
+   List — today's clinic + import schedule
+   =================================================================== */
+async function renderList() {
+  titleEl.textContent = t('tab.list');
+  primaryBtn.style.display = 'none';
+
+  const patients = await db.listPatients();
+  const today = todayISO();
+  // byPatient: Map<patientId, { p, od?, os? }> for eyes due today.
+  const byPatient = new Map();
+  for (const p of patients) {
+    ensurePatientShape(p);
+    const injs = await db.listInjections(p.id);
+    for (const ek of ['od', 'os']) {
+      const eye = { ...p.eyes[ek], _eyeKey: ek };
+      if (!eye.active) continue;
+      const s = eyeStatus(eye, injs, today);
+      if (!s.nextDate) continue;
+      // Include eyes whose nextDate is today, OR which are already late.
+      if (s.nextDate !== today && s.status !== 'late') continue;
+      const eyeInjCount = injs.filter(i => i.eye === ek).length;
+      if (!byPatient.has(p.id)) byPatient.set(p.id, { p });
+      byPatient.get(p.id)[ek] = { drugKey: eye.drug, injNumber: eyeInjCount + 1, status: s.status };
+    }
+  }
+  const todaysPatients = Array.from(byPatient.values());
+  const fr = getLang() === 'fr';
+  const doneKey = 'injectlog_clinic_done_' + today;
+  const done = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
+  const doneCount = todaysPatients.filter(e => done.has(e.p.id)).length;
+
+  view.innerHTML = `
+    <h2 style="font-family:var(--serif); font-weight:500; font-size:20px; margin: 4px 0 4px;">${escapeHtml(fr ? "Liste du jour" : "Today's list")} <span style="font-family:var(--sans); font-size:12px; color:var(--text3); font-weight:400;">${escapeHtml(fmtDate(today))}</span></h2>
+    <p style="font-size:12px; color:var(--text3); margin: 0 0 12px;">${todaysPatients.length ? `${doneCount}/${todaysPatients.length} ${escapeHtml(fr ? 'cochés' : 'done')}` : escapeHtml(fr ? "Aucun œil prévu aujourd'hui." : 'Nothing due today.')}</p>
+
+    <div class="btn-row" style="display:flex; gap:8px; margin-bottom:12px;">
+      <button id="list-import" class="btn-secondary" style="flex:1;">${escapeHtml(t('patients.import'))}</button>
+      <button id="list-add" class="btn-ghost" style="flex:0 0 auto;">${escapeHtml(t('patients.add'))}</button>
+      <input id="list-import-photo" type="file" accept="image/*" style="display:none;">
+    </div>
+
+    ${todaysPatients.length ? `<div class="card list">
+      ${todaysPatients.map(entry => {
+        const k = entry.p.id;
+        const isDone = done.has(k);
+        const pillFor = (eyeKey) => {
+          const e = entry[eyeKey];
+          if (!e) return '';
+          return `<span class="drug-pill" style="background:${drug(e.drugKey).color}; flex:0 0 auto;">${escapeHtml(eyeKey.toUpperCase())} · ${escapeHtml(drugLabel(e.drugKey))} <strong style="opacity:0.9; margin-left:3px;">#${e.injNumber}</strong></span>`;
+        };
+        return `
+          <div class="row" data-pid="${entry.p.id}" data-clinic="${k}">
+            <button type="button" class="chip ${isDone ? 'selected' : ''}" data-toggle-clinic="${k}" style="padding:6px 10px; min-width:36px; justify-content:center;">${isDone ? '✓' : ''}</button>
+            <div class="meta">
+              <h3 style="${isDone ? 'text-decoration:line-through; color:var(--text3);' : ''}">${escapeHtml(formatPatientName(entry.p))}${entry.p.patientNumber ? ` <span style="font-weight:400; color:var(--text3); font-size:13px;">· #${escapeHtml(entry.p.patientNumber)}</span>` : ''}</h3>
+              <p style="display:flex; gap:4px; flex-wrap:wrap;">${pillFor('od')}${pillFor('os')}</p>
+            </div>
+            <div class="chev">›</div>
+          </div>`;
+      }).join('')}
+    </div>` : `
+      <div class="empty" style="padding:30px 16px;">
+        <p style="font-size:13px; color:var(--text3); max-width:34ch; margin: 0 auto;">${escapeHtml(fr ? "Importez la liste du jour à partir d'une photo, ou ajoutez les patients manuellement." : "Import today's list from a photo, or add patients manually.")}</p>
+      </div>`}`;
+
+  document.getElementById('list-import').onclick = () => document.getElementById('list-import-photo').click();
+  document.getElementById('list-import-photo').onchange = (e) => handleImportSchedule(e.target.files?.[0]);
+  document.getElementById('list-add').onclick = () => promptNewPatient();
+  view.querySelectorAll('[data-toggle-clinic]').forEach(btn => btn.onclick = (e) => {
+    e.stopPropagation();
+    const k = btn.dataset.toggleClinic;
+    const set = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
+    if (set.has(k)) set.delete(k); else set.add(k);
+    localStorage.setItem(doneKey, JSON.stringify([...set]));
+    renderList();
+  });
+  view.querySelectorAll('.row[data-clinic]').forEach(r => r.onclick = (e) => {
+    if (e.target.closest('[data-toggle-clinic]')) return;
+    go('patient', { patientId: r.dataset.pid });
+  });
+}
+
+/* =====================================================================
    Stats hub
    =================================================================== */
 async function renderStats() {
@@ -3554,7 +3776,6 @@ async function renderStats() {
       <div class="row" data-go="letter-gain"><div class="avatar">📈</div><div class="meta"><h3>${escapeHtml(t('stats.letter.gain'))}</h3></div><div class="chev">›</div></div>
       <div class="row" data-go="switching"><div class="avatar">🔁</div><div class="meta"><h3>${escapeHtml(t('stats.switching'))}</h3></div><div class="chev">›</div></div>
       <div class="row" data-go="capacity"><div class="avatar">📅</div><div class="meta"><h3>${escapeHtml(t('stats.capacity'))}</h3></div><div class="chev">›</div></div>
-      <div class="row" data-go="cost"><div class="avatar">💰</div><div class="meta"><h3>${escapeHtml(t('stats.cost'))}</h3></div><div class="chev">›</div></div>
       <div class="row" data-go="complications"><div class="avatar">⚠</div><div class="meta"><h3>${escapeHtml(t('stats.complications.detail'))}</h3></div><div class="chev">›</div></div>
       <div class="row" data-go="recall"><div class="avatar">🔔</div><div class="meta"><h3>${escapeHtml(t('stats.recall'))}</h3></div><div class="chev">›</div></div>
     </div>`;
@@ -3748,37 +3969,6 @@ async function renderCapacity() {
     </div>`;
 }
 
-/* ─── Cost ledger ──────────────────────────────────────────────────── */
-async function renderCost() {
-  titleEl.textContent = t('stats.cost');
-  primaryBtn.style.display = 'none';
-  const allInj = await db.listAllInjections();
-  const costs = getCosts();
-  const byDrug = {};
-  for (const i of allInj) byDrug[i.drug] = (byDrug[i.drug] || 0) + 1;
-  let total = 0;
-  view.innerHTML = `
-    <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('stats.cost.body'))}</p>
-    <div class="card">
-      ${DRUGS.map(d => {
-        const n = byDrug[d.key] || 0;
-        const unit = costs[d.key] || 0;
-        const lineTotal = n * unit;
-        total += lineTotal;
-        return `
-          <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--separator);">
-            <span class="drug-pill" style="background:${d.color};">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</span>
-            <div style="flex:1; font-size:13px;">${n} × ${unit ? '$' + unit : '—'}</div>
-            <div style="font-variant-numeric:tabular-nums; font-size:13px;">${unit ? '$' + lineTotal.toLocaleString() : '—'}</div>
-          </div>`;
-      }).join('')}
-      <div style="display:flex; justify-content:space-between; padding-top:8px; font-weight:600;">
-        <span>Total</span>
-        <span>$${total.toLocaleString()}</span>
-      </div>
-    </div>`;
-}
-
 /* ─── Complications tracker ────────────────────────────────────────── */
 async function renderComplications() {
   titleEl.textContent = t('stats.complications.detail');
@@ -3933,7 +4123,6 @@ async function renderSettings() {
   titleEl.textContent = t('settings.title');
   primaryBtn.style.display = 'none';
   const lang = getLang();
-  const costs = getCosts();
   const dBackup = lastBackupDays();
   const backupNote = dBackup == null
     ? t('settings.backup.never')
@@ -3996,20 +4185,6 @@ async function renderSettings() {
         <div class="card">
           <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.csv.body'))}</p>
           <button id="s-csv" class="btn-block">${escapeHtml(t('settings.csv.btn'))}</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-toggle" id="set-cost">
-      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.cost'))}</span></div>
-      <div class="toggle-body">
-        <div class="card">
-          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.cost.body'))}</p>
-          ${DRUGS.map(d => `
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-              <span class="drug-pill" style="background:${d.color}; width:84px; flex:0 0 84px; justify-content:flex-start;">${escapeHtml(fr ? d.fr : d.en)}</span>
-              <input data-cost-key="${d.key}" type="number" min="0" step="1" inputmode="numeric" value="${costs[d.key] || ''}" style="flex:1;">
-            </div>`).join('')}
         </div>
       </div>
     </div>
@@ -4078,9 +4253,6 @@ async function renderSettings() {
   document.getElementById('s-import').onclick = () => document.getElementById('s-import-file').click();
   document.getElementById('s-import-file').onchange = (e) => importEncryptedBackup(e.target.files?.[0]);
   document.getElementById('s-csv').onclick = exportAnonymisedCsv;
-  view.querySelectorAll('[data-cost-key]').forEach(input => {
-    input.addEventListener('change', () => setCost(input.dataset.costKey, Number(input.value)));
-  });
   document.getElementById('s-demo').onclick = () => showDemoFlow(true);
   document.getElementById('s-terms').onclick = () => showTermsScreen(true);
   document.getElementById('s-seed-load').onclick = () => seedDemoPatients();
@@ -4184,6 +4356,105 @@ async function showInstallHint() {
       resolve();
     }, { once: true });
   });
+}
+
+/* =====================================================================
+   Analyse with AI — sends de-identified clinical history to Anthropic
+   Claude Opus 4.7 for an educational comparison vs. consensus practice.
+   Identifiers (name, chart #, DOB, free-text notes) are NOT sent.
+   =================================================================== */
+async function analysePatientWithAi(patient, injs) {
+  const fr = getLang() === 'fr';
+  // Confirm before sending — the user explicitly opts in each time, like
+  // the schedule-scan feature does. Matches the consent posture in Terms.
+  const confirmMsg = fr
+    ? "Envoyer l'historique clinique anonymisé de ce patient à Anthropic Claude (États-Unis) pour une analyse éducative ? Aucun identifiant (nom, n° dossier, DDN, notes) n'est envoyé."
+    : "Send this patient's de-identified clinical history to Anthropic Claude (US-hosted) for an educational analysis? No identifiers (name, chart #, DOB, notes) are sent.";
+  if (!confirm(confirmMsg)) return;
+
+  // Build the de-identified payload.
+  ensurePatientShape(patient);
+  const ageYears = (() => {
+    if (!patient.dob) return null;
+    const d = new Date(patient.dob);
+    if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / (365.25 * 86400000));
+  })();
+  const buildEye = (eyeKey) => {
+    const eye = patient.eyes[eyeKey];
+    const list = injs.filter(i => i.eye === eyeKey).slice().sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+    return {
+      eye: eyeKey,
+      active: !!eye.active,
+      diagnosis: eye.diagnosis || null,
+      regimen: eye.regimen || null,
+      intervalWeeks: eye.intervalWeeks || null,
+      loadingTarget: eye.loadingTarget || null,
+      injections: list.map((i, idx) => ({
+        date: i.date,
+        drug: i.drug,
+        vaSnellen: i.vaSnellen || null,
+        crtUm: typeof i.crtUm === 'number' ? i.crtUm : null,
+        iopPre: i.iopPre ?? null,
+        iopPost: i.iopPost ?? null,
+        intervalWeeksApplied: i.intervalWeeksApplied ?? null,
+        weeksSincePrior: idx > 0 ? Number((daysBetween(list[idx - 1].date, i.date) / 7).toFixed(1)) : null,
+        complications: Array.isArray(i.complications) ? i.complications : [],
+        switchReason: i.switchReason || null,
+      })),
+    };
+  };
+  const payload = {
+    lang: fr ? 'fr' : 'en',
+    ageYears,
+    allergies: Array.isArray(patient.allergies) ? patient.allergies : [],
+    eyes: [buildEye('od'), buildEye('os')],
+  };
+
+  // Open the modal in a "loading" state immediately, then stream/await
+  // the response. We re-use the fs-overlay pattern from Terms / Demo.
+  const el = document.createElement('div');
+  el.className = 'fs-overlay';
+  el.innerHTML = `
+    <header>
+      <button id="ai-cancel" class="btn-ghost" style="padding:6px 10px;">${escapeHtml(t('btn.close'))}</button>
+      <h2>${escapeHtml(fr ? 'Analyse IA' : 'AI analysis')}</h2>
+    </header>
+    <main style="padding:14px;">
+      <div id="ai-out">
+        <p style="color:var(--text3); font-size:13px;">${escapeHtml(fr ? 'Analyse en cours…' : 'Analysing…')}</p>
+      </div>
+      <p style="font-size:11px; color:var(--text3); line-height:1.45; margin-top:18px;">${escapeHtml(fr
+        ? "Cette analyse est éducative et compare la trajectoire du patient avec la pratique consensuelle. Ce n'est pas une recommandation clinique."
+        : "This analysis is educational and compares the patient's trajectory with consensus practice. It is not a clinical recommendation.")}</p>
+    </main>`;
+  document.body.appendChild(el);
+  el.querySelector('#ai-cancel').onclick = () => el.remove();
+
+  try {
+    const res = await fetch('/api/analyze-patient', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    const out = el.querySelector('#ai-out');
+    if (!out) return; // user dismissed
+    if (!res.ok) {
+      out.innerHTML = `<p style="color:var(--ember); font-size:13px;">${escapeHtml((fr ? 'Erreur : ' : 'Error: ') + (data?.error || res.status))}</p>`;
+      return;
+    }
+    const text = data.text || '';
+    // Render the response as paragraphs. We don't parse markdown deeply —
+    // the prompt asks for plain prose with short headed sections, so
+    // splitting on blank lines is good enough.
+    out.innerHTML = text.split(/\n{2,}/).map(p =>
+      `<p style="font-size:14px; line-height:1.55; color:var(--text2); margin: 0 0 10px;">${escapeHtml(p)}</p>`
+    ).join('');
+  } catch (e) {
+    const out = el.querySelector('#ai-out');
+    if (out) out.innerHTML = `<p style="color:var(--ember); font-size:13px;">${escapeHtml((fr ? 'Erreur réseau : ' : 'Network error: ') + String(e))}</p>`;
+  }
 }
 
 /* =====================================================================
