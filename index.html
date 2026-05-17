@@ -189,6 +189,30 @@ textarea { min-height: 80px; resize: vertical; }
 .empty h2 { font-family: var(--serif); font-size: 20px; color: var(--text); margin: 0 0 6px; font-weight: 500; }
 .empty p { font-size: 14px; max-width: 32ch; margin: 0 auto 14px; line-height: 1.45; }
 
+.section-toggle .toggle-head {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
+  padding: 14px 4px 8px;
+  font-family: var(--serif);
+  font-size: 17px; font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.section-toggle .toggle-head .caret {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  color: var(--text3);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+.section-toggle.open .toggle-head .caret { transform: rotate(90deg); }
+.section-toggle .toggle-head .sub {
+  font-family: var(--sans); font-size: 12px; color: var(--text3);
+  margin-left: auto; font-weight: 400;
+}
+.section-toggle .toggle-body { display: none; padding-bottom: 4px; }
+.section-toggle.open .toggle-body { display: block; }
+
 .drug-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 9px; border-radius: 999px;
@@ -511,15 +535,19 @@ const regimenLabel = (k) => {
 };
 
 const COMPLICATIONS = [
-  { key: 'ioh-spike',     en: 'IOP spike',                fr: 'Pic de PIO' },
-  { key: 'subconj-hem',   en: 'Subconjunctival heme',     fr: 'Hémorragie sous-conj.' },
-  { key: 'endophth',      en: 'Endophthalmitis',          fr: 'Endophtalmie' },
-  { key: 'rpe-tear',      en: 'RPE tear',                 fr: 'Déchirure de l\'EPR' },
-  { key: 'vh',            en: 'Vitreous heme',            fr: 'Hémorragie vitréenne' },
-  { key: 'lens-injury',   en: 'Lens injury',              fr: 'Lésion cristallinienne' },
-  { key: 'rd',            en: 'Retinal detachment',       fr: 'Décollement de rétine' },
-  { key: 'systemic-tx',   en: 'Systemic event',           fr: 'Événement systémique' },
+  // severity: 'sight'  = sight-threatening (reportable, action required)
+  //           'minor'  = transient / nuisance (counsel only)
+  //           'systemic' = non-ocular event
+  { key: 'endophth',      en: 'Endophthalmitis',          fr: 'Endophtalmie',            severity: 'sight' },
+  { key: 'rd',            en: 'Retinal detachment',       fr: 'Décollement de rétine',   severity: 'sight' },
+  { key: 'rpe-tear',      en: 'RPE tear',                 fr: 'Déchirure de l\'EPR',     severity: 'sight' },
+  { key: 'vh',            en: 'Vitreous heme',            fr: 'Hémorragie vitréenne',    severity: 'sight' },
+  { key: 'lens-injury',   en: 'Lens injury',              fr: 'Lésion cristallinienne',  severity: 'sight' },
+  { key: 'ioh-spike',     en: 'IOP spike',                fr: 'Pic de PIO',              severity: 'minor' },
+  { key: 'subconj-hem',   en: 'Subconjunctival heme',     fr: 'Hémorragie sous-conj.',   severity: 'minor' },
+  { key: 'systemic-tx',   en: 'Systemic event',           fr: 'Événement systémique',    severity: 'systemic' },
 ];
+const complicationSeverity = (k) => COMPLICATIONS.find(c => c.key === k)?.severity || 'minor';
 const complicationLabel = (k) => {
   const c = COMPLICATIONS.find(x => x.key === k);
   if (!c) return k;
@@ -749,7 +777,12 @@ const STRINGS = {
     'stats.cost': 'Cost ledger',
     'stats.cost.body': 'Drug cost per unit × injections. Set unit costs in Settings.',
     'stats.complications.detail': 'Complications tracker',
-    'stats.complications.body': 'Every complication chip across the whole library — useful for review.',
+    'stats.complications.body': 'Grouped by severity. Counts, rate per 1 000 injections, and event detail on tap.',
+    'comp.sev.sight': 'Sight-threatening',
+    'comp.sev.minor': 'Transient / nuisance',
+    'comp.sev.systemic': 'Systemic',
+    'comp.rate': 'rate / 1 000',
+    'comp.no.events': 'No events recorded.',
     'stats.recall': 'Recall list',
     'stats.recall.body': 'Eyes inactive for {n} weeks but never explicitly stopped.',
     'stats.recall.weeks': 'Recall threshold (weeks)',
@@ -941,7 +974,12 @@ const STRINGS = {
     'stats.cost': 'Coûts',
     'stats.cost.body': 'Coût unitaire × injections. Réglez les coûts dans Paramètres.',
     'stats.complications.detail': 'Suivi des complications',
-    'stats.complications.body': 'Toutes les complications enregistrées — utile pour révision.',
+    'stats.complications.body': 'Groupées par gravité. Comptes, taux pour 1 000 injections, détail au toucher.',
+    'comp.sev.sight': 'Menace visuelle',
+    'comp.sev.minor': 'Transitoires',
+    'comp.sev.systemic': 'Systémiques',
+    'comp.rate': 'taux / 1 000',
+    'comp.no.events': 'Aucun événement enregistré.',
     'stats.recall': 'Liste de rappel',
     'stats.recall.body': "Yeux sans injection depuis {n} semaines mais jamais explicitement arrêtés.",
     'stats.recall.weeks': 'Seuil de rappel (semaines)',
@@ -1675,8 +1713,8 @@ async function render() {
   const credit = document.getElementById('footer-credit');
   if (credit) {
     const lu = new Date(document.lastModified);
-    const luStr = isNaN(lu.getTime()) ? '' : lu.toLocaleString(getLang() === 'fr' ? 'fr-CA' : undefined,
-      { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const luStr = isNaN(lu.getTime()) ? '' : lu.toLocaleString(getLang() === 'fr' ? 'fr-CA' : 'en-CA',
+      { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: getLang() !== 'fr' });
     credit.textContent = luStr ? (getLang() === 'fr' ? 'Mise à jour : ' : 'Last update: ') + luStr : '';
   }
 
@@ -1815,34 +1853,17 @@ async function renderPatients() {
 
   const emailBtn = (due + late) > 0 ? `
     <button id="email-today" class="btn-secondary" style="margin-bottom:12px;">${escapeHtml(t('home.email.btn'))}</button>` : '';
-  view.innerHTML = `
-    <div style="display:flex; align-items:center; gap:8px; margin: 4px 4px 10px;">
-      ${due > 0 ? `<span class="status-badge due">${escapeHtml(tF('patient.due.today', { n: due }))}</span>` : ''}
-      ${late > 0 ? `<span class="status-badge late">${escapeHtml(tF('patient.late', { n: late }))}</span>` : ''}
-    </div>
-    <div class="btn-row" style="display:flex; gap:8px; margin-bottom:10px;">
-      <button id="import-btn" class="btn-secondary" style="flex:1;">${escapeHtml(t('patients.import'))}</button>
-      <input id="import-photo" type="file" accept="image/*" style="display:none;">
-    </div>
-    ${emailBtn}
-    <label class="field">
-      <input id="ps-q" type="search" placeholder="${escapeAttr(t('patients.search.ph'))}" value="${escapeAttr(state.patientSearch || '')}" autocapitalize="none" autocomplete="off">
-    </label>
-    <div class="chip-grid" style="margin-bottom:10px;">
-      ${[['all', getLang() === 'fr' ? 'Tous' : 'All status'], ['due', t('status.due')], ['late', t('status.late')], ['future', t('status.future')]].map(([k, lab]) => `
-        <button type="button" class="chip ${f.status === k ? 'selected' : ''}" data-filter-status="${k}">${escapeHtml(lab)}</button>
-      `).join('')}
-    </div>
-    <div class="chip-grid" style="margin-bottom:10px;">
-      <button type="button" class="chip ${f.drug === 'all' ? 'selected' : ''}" data-filter-drug="all">${escapeHtml(getLang() === 'fr' ? 'Tous produits' : 'All drugs')}</button>
-      ${DRUGS.filter(d => d.key !== 'other').map(d => `<button type="button" class="chip ${f.drug === d.key ? 'selected' : ''}" data-filter-drug="${d.key}" style="${f.drug === d.key ? 'background:' + d.color + ';color:#fff;' : ''}">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</button>`).join('')}
-    </div>
-    <div class="chip-grid" style="margin-bottom:14px;">
-      <button type="button" class="chip ${f.indication === 'all' ? 'selected' : ''}" data-filter-ind="all">${escapeHtml(getLang() === 'fr' ? 'Toutes indic.' : 'All indications')}</button>
-      ${INDICATIONS.filter(i => i.key !== 'other').map(i => `<button type="button" class="chip ${f.indication === i.key ? 'selected' : ''}" data-filter-ind="${i.key}">${escapeHtml(getLang() === 'fr' ? i.fr : i.en)}</button>`).join('')}
-    </div>
+  const hasFilter = q || f.status !== 'all' || f.drug !== 'all' || f.indication !== 'all';
+  // List is intentionally hidden until the user types a query OR picks at
+  // least one filter chip. This keeps the home screen calm and prevents
+  // accidental exposure of identifiers when the device is glanced at.
+  const fr = getLang() === 'fr';
+  if (state.patientSearchOpen == null) state.patientSearchOpen = false;
+  const searchOpen = !!state.patientSearchOpen || hasFilter;
+  const listBlock = hasFilter ? `
+    <p style="font-size:12px; color:var(--text3); margin: 0 4px 8px;">${escapeHtml(fr ? `${filtered.length} sur ${enriched.length}` : `${filtered.length} of ${enriched.length}`)}</p>
     <div class="card list">
-      ${filtered.map(({ p, sOd, sOs, injs }) => {
+      ${filtered.length ? filtered.map(({ p, sOd, sOs, injs }) => {
         const badge = (s) => `<span class="status-badge ${s.status}" style="margin-right:4px;">${s.status === 'late' && s.daysToNext != null ? `${-s.daysToNext}d ` : ''}${escapeHtml(t('status.' + s.status))}</span>`;
         const tags = [];
         if (p.eyes.od.active) tags.push(`<span class="drug-pill" style="background:${drug(p.eyes.od.drug).color};">OD ${escapeHtml(drugLabel(p.eyes.od.drug))}</span>`);
@@ -1860,16 +1881,71 @@ async function renderPatients() {
           </div>
           <div class="chev">›</div>
         </div>`;
-      }).join('')}
+      }).join('') : `<p style="color:var(--text3); font-size:13px; text-align:center; padding:14px 0; margin:0;">${escapeHtml(fr ? 'Aucun patient' : 'No match')}</p>`}
+    </div>` : `
+    <div class="empty" style="padding:38px 16px;">
+      <p style="font-size:13px; color:var(--text3); max-width:34ch; margin: 0 auto;">${escapeHtml(fr
+        ? `${enriched.length} patient${enriched.length > 1 ? 's' : ''} dans la base. Ouvrez la recherche ci-dessus ou choisissez une étiquette pour afficher.`
+        : `${enriched.length} patient${enriched.length > 1 ? 's' : ''} on file. Open the search above or pick a chip to show the list.`)}</p>
     </div>`;
 
-  document.getElementById('ps-q').addEventListener('input', (e) => {
-    state.patientSearch = e.target.value;
-    renderPatients();
-  });
+  view.innerHTML = `
+    <div style="display:flex; align-items:center; gap:8px; margin: 4px 4px 10px;">
+      ${due > 0 ? `<span class="status-badge due">${escapeHtml(tF('patient.due.today', { n: due }))}</span>` : ''}
+      ${late > 0 ? `<span class="status-badge late">${escapeHtml(tF('patient.late', { n: late }))}</span>` : ''}
+    </div>
+    <div class="btn-row" style="display:flex; gap:8px; margin-bottom:10px;">
+      <button id="import-btn" class="btn-secondary" style="flex:1;">${escapeHtml(t('patients.import'))}</button>
+      <input id="import-photo" type="file" accept="image/*" style="display:none;">
+    </div>
+    ${emailBtn}
+
+    <div class="section-toggle ${searchOpen ? 'open' : ''}" id="ps-search-toggle">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(fr ? 'Rechercher et filtrer' : 'Search & filter')}</span><span class="sub">${hasFilter ? escapeHtml(fr ? 'actif' : 'active') : ''}</span></div>
+      <div class="toggle-body">
+        <label class="field">
+          <input id="ps-q" type="search" placeholder="${escapeAttr(t('patients.search.ph'))}" value="${escapeAttr(state.patientSearch || '')}" autocapitalize="none" autocomplete="off">
+        </label>
+        <div class="chip-grid" style="margin-bottom:10px;">
+          ${[['all', fr ? 'Tous' : 'All status'], ['due', t('status.due')], ['late', t('status.late')], ['future', t('status.future')]].map(([k, lab]) => `
+            <button type="button" class="chip ${f.status === k ? 'selected' : ''}" data-filter-status="${k}">${escapeHtml(lab)}</button>
+          `).join('')}
+        </div>
+        <div class="chip-grid" style="margin-bottom:10px;">
+          <button type="button" class="chip ${f.drug === 'all' ? 'selected' : ''}" data-filter-drug="all">${escapeHtml(fr ? 'Tous produits' : 'All drugs')}</button>
+          ${DRUGS.filter(d => d.key !== 'other').map(d => `<button type="button" class="chip ${f.drug === d.key ? 'selected' : ''}" data-filter-drug="${d.key}" style="${f.drug === d.key ? 'background:' + d.color + ';color:#fff;' : ''}">${escapeHtml(fr ? d.fr : d.en)}</button>`).join('')}
+        </div>
+        <div class="chip-grid" style="margin-bottom:14px;">
+          <button type="button" class="chip ${f.indication === 'all' ? 'selected' : ''}" data-filter-ind="all">${escapeHtml(fr ? 'Toutes indic.' : 'All indications')}</button>
+          ${INDICATIONS.filter(i => i.key !== 'other').map(i => `<button type="button" class="chip ${f.indication === i.key ? 'selected' : ''}" data-filter-ind="${i.key}">${escapeHtml(fr ? i.fr : i.en)}</button>`).join('')}
+        </div>
+        ${hasFilter ? `<button id="ps-clear" class="btn-ghost" style="font-size:12px; padding:6px 10px;">${escapeHtml(fr ? '↺ Réinitialiser' : '↺ Reset filters')}</button>` : ''}
+      </div>
+    </div>
+
+    ${listBlock}`;
+
+  const searchToggle = document.getElementById('ps-search-toggle');
+  searchToggle.querySelector('.toggle-head').onclick = () => {
+    searchToggle.classList.toggle('open');
+    state.patientSearchOpen = searchToggle.classList.contains('open');
+  };
+  const psQ = document.getElementById('ps-q');
+  if (psQ) {
+    psQ.addEventListener('input', (e) => {
+      state.patientSearch = e.target.value;
+      renderPatients();
+    });
+  }
   view.querySelectorAll('[data-filter-status]').forEach(b => b.onclick = () => { state.patientFilters.status = b.dataset.filterStatus; renderPatients(); });
   view.querySelectorAll('[data-filter-drug]').forEach(b => b.onclick = () => { state.patientFilters.drug = b.dataset.filterDrug; renderPatients(); });
   view.querySelectorAll('[data-filter-ind]').forEach(b => b.onclick = () => { state.patientFilters.indication = b.dataset.filterInd; renderPatients(); });
+  const clr = document.getElementById('ps-clear');
+  if (clr) clr.onclick = () => {
+    state.patientSearch = '';
+    state.patientFilters = { status: 'all', drug: 'all', indication: 'all' };
+    renderPatients();
+  };
   view.querySelectorAll('.row[data-pid]').forEach(r => {
     r.onclick = () => go('patient', { patientId: r.dataset.pid });
   });
@@ -2892,7 +2968,8 @@ async function renderCalendar() {
   titleEl.textContent = t('cal.title');
   primaryBtn.style.display = 'none';
 
-  if (typeof state.calendarView !== 'string') state.calendarView = 'month'; // 'month' | 'week'
+  // 'today' = today's-clinic view (no grid); 'week' / 'month' are grid views.
+  if (typeof state.calendarView !== 'string') state.calendarView = 'today';
   const now = new Date();
   if (!state.calendarMonth) {
     state.calendarMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -2923,7 +3000,9 @@ async function renderCalendar() {
   }
   const dow = getLang() === 'fr' ? ['D','L','M','M','J','V','S'] : ['S','M','T','W','T','F','S'];
   const isToday = (iso) => iso === today;
+  const isTodayView = state.calendarView === 'today';
   const isWeek = state.calendarView === 'week';
+  const isMonth = state.calendarView === 'month';
   const weekDays = (() => {
     const arr = [];
     for (let i = 0; i < 7; i++) arr.push(addDays(state.calendarWeekStart, i));
@@ -2931,16 +3010,17 @@ async function renderCalendar() {
   })();
   const cells = isWeek ? weekDays : days;
 
-  // Today's-clinic strip — appears whenever there's at least one due/late
-  // eye today. Checkable per row; "done" state is per-day-localStorage,
-  // so reloading the app on the same day preserves which patients you've
-  // already injected.
   const todays = byDate.get(today) || [];
   const doneKey = 'injectlog_clinic_done_' + today;
   const done = new Set(JSON.parse(localStorage.getItem(doneKey) || '[]'));
-  const clinicStrip = todays.length ? `
-    <h3 class="section-title">${escapeHtml(getLang() === 'fr' ? "Clinique du jour" : "Today's clinic")} <span class="sub">${todays.filter(e => done.has(e.p.id + ':' + e.eye)).length}/${todays.length}</span></h3>
-    <div class="card list" style="margin-bottom:14px;">
+
+  // Today's-clinic full view — only renders in 'today' mode. Same checkbox
+  // pattern as before; "done" state is per-day-localStorage so a same-day
+  // reload preserves which patients you've already injected.
+  const todayView = `
+    <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin: 4px 0 4px;">${escapeHtml(getLang() === 'fr' ? "Clinique du jour" : "Today's clinic")} <span style="font-family:var(--sans); font-size:12px; color:var(--text3); font-weight:400;">${escapeHtml(fmtDate(today))}</span></h2>
+    <p style="font-size:12px; color:var(--text3); margin: 0 0 10px;">${todays.length ? `${escapeHtml(todays.filter(e => done.has(e.p.id + ':' + e.eye)).length + '/' + todays.length)} ${escapeHtml(getLang() === 'fr' ? 'cochés' : 'done')}` : escapeHtml(getLang() === 'fr' ? "Aucun œil prévu aujourd'hui." : 'Nothing due today.')}</p>
+    ${todays.length ? `<div class="card list">
       ${todays.map(e => {
         const k = e.p.id + ':' + e.eye;
         const isDone = done.has(k);
@@ -2955,18 +3035,14 @@ async function renderCalendar() {
             <div class="chev">›</div>
           </div>`;
       }).join('')}
-    </div>` : '';
+    </div>` : ''}`;
 
-  view.innerHTML = `
-    ${clinicStrip}
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+  // Shared grid (week or month).
+  const gridView = `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 4px 0 10px;">
       <button id="cal-prev" class="btn-ghost" style="padding:6px 12px;">‹</button>
       <h2 style="font-family:var(--serif); font-weight:500; font-size:18px; margin:0; text-transform:capitalize;">${escapeHtml(isWeek ? `${fmtDate(state.calendarWeekStart)} → ${fmtDate(addDays(state.calendarWeekStart, 6))}` : fmtMonth(state.calendarMonth))}</h2>
       <button id="cal-next" class="btn-ghost" style="padding:6px 12px;">›</button>
-    </div>
-    <div class="seg" style="margin-bottom:10px;">
-      <button id="cal-view-month" class="${!isWeek ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Mois' : 'Month')}</button>
-      <button id="cal-view-week"  class="${isWeek ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Semaine' : 'Week')}</button>
     </div>
     <p style="font-size:12px; color:var(--text3); margin: 4px 4px 10px;">${escapeHtml(t('cal.tap.day'))}</p>
     <div class="cal-grid">
@@ -2987,25 +3063,18 @@ async function renderCalendar() {
     </div>
     <div id="cal-day" style="margin-top:16px;"></div>`;
 
-  document.getElementById('cal-view-month').onclick = () => { state.calendarView = 'month'; renderCalendar(); };
+  view.innerHTML = `
+    <div class="seg" style="margin: 4px 0 12px;">
+      <button id="cal-view-today" class="${isTodayView ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? "Aujourd'hui" : "Today's clinic")}${todays.length ? ` <span style="font-weight:400; opacity:0.8;">· ${todays.length}</span>` : ''}</button>
+      <button id="cal-view-week"  class="${isWeek ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Semaine' : 'Week')}</button>
+      <button id="cal-view-month" class="${isMonth ? 'on' : ''}">${escapeHtml(getLang() === 'fr' ? 'Mois' : 'Month')}</button>
+    </div>
+    ${isTodayView ? todayView : gridView}`;
+
+  document.getElementById('cal-view-today').onclick = () => { state.calendarView = 'today'; renderCalendar(); };
   document.getElementById('cal-view-week').onclick = () => { state.calendarView = 'week'; renderCalendar(); };
-  document.getElementById('cal-prev').onclick = () => {
-    if (isWeek) state.calendarWeekStart = addDays(state.calendarWeekStart, -7);
-    else {
-      const d = new Date(y, m - 2, 1);
-      state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
-    renderCalendar();
-  };
-  document.getElementById('cal-next').onclick = () => {
-    if (isWeek) state.calendarWeekStart = addDays(state.calendarWeekStart, 7);
-    else {
-      const d = new Date(y, m, 1);
-      state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
-    renderCalendar();
-  };
-  // Today's clinic checkboxes + row tap-through
+  document.getElementById('cal-view-month').onclick = () => { state.calendarView = 'month'; renderCalendar(); };
+  // Today's clinic checkbox/tap wiring (only present in 'today' view).
   view.querySelectorAll('[data-toggle-clinic]').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -3022,6 +3091,24 @@ async function renderCalendar() {
       go('patient', { patientId: r.dataset.pid });
     };
   });
+  if (isTodayView) return;
+  // Grid-only nav & long-press wiring below.
+  document.getElementById('cal-prev').onclick = () => {
+    if (isWeek) state.calendarWeekStart = addDays(state.calendarWeekStart, -7);
+    else {
+      const d = new Date(y, m - 2, 1);
+      state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    renderCalendar();
+  };
+  document.getElementById('cal-next').onclick = () => {
+    if (isWeek) state.calendarWeekStart = addDays(state.calendarWeekStart, 7);
+    else {
+      const d = new Date(y, m, 1);
+      state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    renderCalendar();
+  };
   // Tap = show day's list. Long-press (500 ms) = quick-add.
   view.querySelectorAll('.cal-cell').forEach(cell => {
     let pressTimer = null, longFired = false;
@@ -3478,28 +3565,93 @@ async function renderComplications() {
   const events = [];
   for (const i of allInj) {
     for (const c of (i.complications || [])) {
-      events.push({ key: c, date: i.date, patientId: i.patientId, eye: i.eye });
+      events.push({ key: c, date: i.date, patientId: i.patientId, eye: i.eye, drug: i.drug });
     }
   }
   events.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const totalInj = allInj.length || 1;
+  const fr = getLang() === 'fr';
+  // Bucket by severity for the top-line summary cards.
+  const sevCount = { sight: 0, minor: 0, systemic: 0 };
+  const sevEvents = { sight: [], minor: [], systemic: [] };
+  const byKey = {};
+  for (const ev of events) {
+    const sev = complicationSeverity(ev.key);
+    sevCount[sev]++;
+    sevEvents[sev].push(ev);
+    (byKey[ev.key] = byKey[ev.key] || []).push(ev);
+  }
+  const sevColor = { sight: 'var(--ember)', minor: '#B45309', systemic: '#5B21B6' };
+  const sevBg    = { sight: 'rgba(220,38,38,0.10)', minor: 'rgba(245,158,11,0.12)', systemic: 'rgba(91,33,182,0.10)' };
+  const sevOrder = ['sight', 'minor', 'systemic'];
+
+  // Per-key summary inside a severity bucket: count, % of severity bucket,
+  // rate per 1 000 injections, last event date.
+  const renderTypeRow = (k, list, bucketTotal) => {
+    const n = list.length;
+    const pct = bucketTotal ? ((n / bucketTotal) * 100).toFixed(0) : 0;
+    const rate = ((n * 1000) / totalInj).toFixed(1);
+    const last = list[0]; // events are reverse-chron
+    return `
+      <div class="row comp-type-row" data-key="${k}" style="cursor:pointer;">
+        <div class="avatar" style="background:${sevBg[complicationSeverity(k)]}; color:${sevColor[complicationSeverity(k)]};">⚠</div>
+        <div class="meta">
+          <h3>${escapeHtml(complicationLabel(k))} <span style="font-weight:400; color:var(--text3); font-size:13px;">· n=${n} · ${pct}%</span></h3>
+          <p>${escapeHtml(t('comp.rate'))} <strong>${rate}</strong> · ${escapeHtml(fr ? 'dernier' : 'last')} ${escapeHtml(fmtDate(last.date))}</p>
+        </div>
+        <div class="chev">▾</div>
+      </div>
+      <div class="comp-type-detail" data-detail="${k}" style="display:none;">
+        ${list.slice(0, 30).map(ev => {
+          const p = pById.get(ev.patientId);
+          return `
+            <div class="row" data-pid="${ev.patientId}" style="padding-left:46px;">
+              <div class="meta">
+                <h3 style="font-size:13px;">${escapeHtml(formatPatientName(p || {}))}${p?.patientNumber ? ` <span style="font-weight:400; color:var(--text3);">· #${escapeHtml(p.patientNumber)}</span>` : ''}</h3>
+                <p>${escapeHtml(fmtDate(ev.date))} · ${escapeHtml(ev.eye.toUpperCase())} · ${escapeHtml(drugLabel(ev.drug))}</p>
+              </div>
+              <div class="chev">›</div>
+            </div>`;
+        }).join('')}
+        ${list.length > 30 ? `<p style="text-align:center; font-size:11px; color:var(--text3); padding:8px;">${escapeHtml(fr ? `+${list.length - 30} de plus` : `+${list.length - 30} more`)}</p>` : ''}
+      </div>`;
+  };
+
   view.innerHTML = `
     <p style="font-size:12px; color:var(--text3); margin: 4px 4px 12px;">${escapeHtml(t('stats.complications.body'))}</p>
-    ${events.length ? `<div class="card list">
-      ${events.map(e => {
-        const p = pById.get(e.patientId);
-        return `
-          <div class="row" data-pid="${e.patientId}">
-            <div class="avatar" style="background:rgba(220,38,38,0.14); color:#991B1B;">⚠</div>
-            <div class="meta">
-              <h3>${escapeHtml(complicationLabel(e.key))}</h3>
-              <p>${escapeHtml(fmtDate(e.date))} · ${escapeHtml(e.eye.toUpperCase())} · ${escapeHtml(formatPatientName(p || {}))}</p>
-            </div>
-            <div class="chev">›</div>
-          </div>`;
-      }).join('')}
-    </div>` : `<div class="empty"><p>—</p></div>`}`;
-  view.querySelectorAll('.row[data-pid]').forEach(r => {
-    r.onclick = () => go('patient', { patientId: r.dataset.pid });
+
+    <div class="eye-grid" style="margin-bottom:12px;">
+      ${statTile(fr ? 'Total' : 'Total events', events.length)}
+      ${statTile(t('comp.rate'), ((events.length * 1000) / totalInj).toFixed(1))}
+      ${statTile(t('comp.sev.sight'), sevCount.sight)}
+    </div>
+
+    ${sevOrder.map(sev => {
+      const bucket = sevEvents[sev];
+      if (!bucket.length) return '';
+      const keys = Object.entries(byKey)
+        .filter(([k]) => complicationSeverity(k) === sev)
+        .sort((a, b) => b[1].length - a[1].length);
+      return `
+        <h3 class="section-title" style="color:${sevColor[sev]};">${escapeHtml(t('comp.sev.' + sev))} <span style="color:var(--text3); font-family:var(--sans); font-weight:400;">· ${bucket.length}</span></h3>
+        <div class="card list">
+          ${keys.map(([k, list]) => renderTypeRow(k, list, bucket.length)).join('')}
+        </div>`;
+    }).join('') || `<div class="empty"><p>${escapeHtml(t('comp.no.events'))}</p></div>`}`;
+
+  // Expand/collapse per type.
+  view.querySelectorAll('.comp-type-row').forEach(row => {
+    row.onclick = (e) => {
+      if (e.target.closest('[data-pid]')) return;
+      const key = row.dataset.key;
+      const det = view.querySelector(`.comp-type-detail[data-detail="${key}"]`);
+      const open = det.style.display !== 'none';
+      det.style.display = open ? 'none' : 'block';
+      row.querySelector('.chev').textContent = open ? '▾' : '▴';
+    };
+  });
+  view.querySelectorAll('[data-pid]').forEach(r => {
+    r.onclick = (e) => { e.stopPropagation(); go('patient', { patientId: r.dataset.pid }); };
   });
 }
 
@@ -3562,89 +3714,133 @@ async function renderSettings() {
   const backupNote = dBackup == null
     ? t('settings.backup.never')
     : tF('settings.backup.ago', { d: dBackup });
+  const fr = getLang() === 'fr';
+  const lockSub = lockIsEnabled() ? (fr ? 'Activé' : 'On') : (fr ? 'Désactivé' : 'Off');
   view.innerHTML = `
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.language'))}</h3>
-      <div class="seg" id="lang">
-        <button data-v="en" class="${lang === 'en' ? 'on' : ''}">English</button>
-        <button data-v="fr" class="${lang === 'fr' ? 'on' : ''}">Français</button>
+    <div class="section-toggle" id="set-lang">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.language'))}</span><span class="sub">${lang === 'fr' ? 'Français' : 'English'}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <div class="seg" id="lang">
+            <button data-v="en" class="${lang === 'en' ? 'on' : ''}">English</button>
+            <button data-v="fr" class="${lang === 'fr' ? 'on' : ''}">Français</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.lock'))}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.lock.body'))}</p>
-      <button id="s-lock" class="btn-block" style="margin-bottom:10px;">${escapeHtml(lockIsEnabled() ? t('settings.lock.disable') : t('settings.lock.enable'))}</button>
-      ${lockIsEnabled() ? `
-        <label class="field" style="margin-bottom:0;">
-          <span class="lbl">${escapeHtml(getLang() === 'fr' ? 'Verrouillage auto après (minutes)' : 'Auto-lock after (minutes)')}</span>
-          <input id="s-autolock" type="number" min="1" max="120" value="${autoLockMinutes()}">
-        </label>` : ''}
+    <div class="section-toggle" id="set-lock">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.lock'))}</span><span class="sub">${escapeHtml(lockSub)}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.lock.body'))}</p>
+          <button id="s-lock" class="btn-block" style="margin-bottom:10px;">${escapeHtml(lockIsEnabled() ? t('settings.lock.disable') : t('settings.lock.enable'))}</button>
+          ${lockIsEnabled() ? `
+            <label class="field" style="margin-bottom:0;">
+              <span class="lbl">${escapeHtml(fr ? 'Verrouillage auto après (minutes)' : 'Auto-lock after (minutes)')}</span>
+              <input id="s-autolock" type="number" min="1" max="120" value="${autoLockMinutes()}">
+            </label>` : ''}
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.email'))}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.email.body'))}</p>
-      <input id="s-email" type="email" placeholder="${escapeAttr(t('settings.email.ph'))}" value="${escapeAttr(getDigestEmail())}" autocapitalize="none">
+    <div class="section-toggle" id="set-email">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.email'))}</span><span class="sub">${escapeHtml(getDigestEmail() || (fr ? 'Non défini' : 'Not set'))}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.email.body'))}</p>
+          <input id="s-email" type="email" placeholder="${escapeAttr(t('settings.email.ph'))}" value="${escapeAttr(getDigestEmail())}" autocapitalize="none">
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.backup'))}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 6px;">${escapeHtml(t('settings.backup.body'))}</p>
-      <p style="font-size:11px; color:${dBackup != null && dBackup > 30 ? 'var(--ember)' : 'var(--text3)'}; margin: 0 0 10px;">${escapeHtml(backupNote)}</p>
-      <button id="s-export" class="btn-block" style="margin-bottom:8px;">${escapeHtml(t('settings.export'))}</button>
-      <button id="s-import" class="btn-secondary">${escapeHtml(t('settings.import'))}</button>
-      <input id="s-import-file" type="file" accept=".json,application/json" style="display:none;">
+    <div class="section-toggle" id="set-backup">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.backup'))}</span><span class="sub" style="${dBackup != null && dBackup > 30 ? 'color:var(--ember);' : ''}">${escapeHtml(backupNote)}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.backup.body'))}</p>
+          <button id="s-export" class="btn-block" style="margin-bottom:8px;">${escapeHtml(t('settings.export'))}</button>
+          <button id="s-import" class="btn-secondary">${escapeHtml(t('settings.import'))}</button>
+          <input id="s-import-file" type="file" accept=".json,application/json" style="display:none;">
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.csv'))}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.csv.body'))}</p>
-      <button id="s-csv" class="btn-block">${escapeHtml(t('settings.csv.btn'))}</button>
+    <div class="section-toggle" id="set-csv">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.csv'))}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.csv.body'))}</p>
+          <button id="s-csv" class="btn-block">${escapeHtml(t('settings.csv.btn'))}</button>
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(t('settings.cost'))}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.cost.body'))}</p>
-      ${DRUGS.map(d => `
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-          <span class="drug-pill" style="background:${d.color}; width:84px; flex:0 0 84px; justify-content:flex-start;">${escapeHtml(getLang() === 'fr' ? d.fr : d.en)}</span>
-          <input data-cost-key="${d.key}" type="number" min="0" step="1" inputmode="numeric" value="${costs[d.key] || ''}" style="flex:1;">
-        </div>`).join('')}
+    <div class="section-toggle" id="set-cost">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(t('settings.cost'))}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(t('settings.cost.body'))}</p>
+          ${DRUGS.map(d => `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <span class="drug-pill" style="background:${d.color}; width:84px; flex:0 0 84px; justify-content:flex-start;">${escapeHtml(fr ? d.fr : d.en)}</span>
+              <input data-cost-key="${d.key}" type="number" min="0" step="1" inputmode="numeric" value="${costs[d.key] || ''}" style="flex:1;">
+            </div>`).join('')}
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(getLang() === 'fr' ? 'Données fictives' : 'Demo data')}</h3>
-      <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">
-        ${escapeHtml(getLang() === 'fr'
-          ? '200 patients fictifs avec un historique réaliste (~2 000 injections, mélange de produits, schémas et trajectoires). Marqués en interne — peuvent être retirés d\'un toucher.'
-          : 'Load 200 fake patients with a realistic injection history (~2 000 injections, mixed drugs, regimens and trajectories). Internally tagged — removable in one tap.')}
-      </p>
-      <button id="s-seed-load" class="btn-block" style="margin-bottom:8px;">🧪 ${escapeHtml(getLang() === 'fr' ? 'Charger 200 patients fictifs' : 'Load 200 demo patients')}</button>
-      <button id="s-seed-clear" class="btn-secondary">${escapeHtml(getLang() === 'fr' ? 'Retirer les patients fictifs' : 'Remove demo patients')}</button>
+    <div class="section-toggle" id="set-seed">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(fr ? 'Données fictives' : 'Demo data')}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <p style="font-size:12px; color:var(--text3); line-height:1.45; margin: 0 0 10px;">${escapeHtml(fr
+            ? "200 patients fictifs avec un historique réaliste (~2 000 injections, mélange de produits, schémas et trajectoires). Marqués en interne — peuvent être retirés d'un toucher."
+            : 'Load 200 fake patients with a realistic injection history (~2 000 injections, mixed drugs, regimens and trajectories). Internally tagged — removable in one tap.')}</p>
+          <button id="s-seed-load" class="btn-block" style="margin-bottom:8px;">🧪 ${escapeHtml(fr ? 'Charger 200 patients fictifs' : 'Load 200 demo patients')}</button>
+          <button id="s-seed-clear" class="btn-secondary">${escapeHtml(fr ? 'Retirer les patients fictifs' : 'Remove demo patients')}</button>
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <button id="s-demo" class="btn-secondary" style="margin-bottom:8px;">${escapeHtml(t('settings.demo.show'))}</button>
-      <button id="s-terms" class="btn-secondary">${escapeHtml(t('settings.terms'))}</button>
+    <div class="section-toggle" id="set-misc">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(fr ? 'Aide et conditions' : 'Help & terms')}</span></div>
+      <div class="toggle-body">
+        <div class="card">
+          <button id="s-demo" class="btn-secondary" style="margin-bottom:8px;">${escapeHtml(t('settings.demo.show'))}</button>
+          <button id="s-terms" class="btn-secondary">${escapeHtml(t('settings.terms'))}</button>
+        </div>
+      </div>
     </div>
 
-    <div class="card" style="text-align:center;">
-      <h3 style="margin:0 0 8px; font-size:14px; font-weight:600;">${escapeHtml(getLang() === 'fr' ? 'À propos' : 'About')}</h3>
-      <p style="font-size:13px; color:var(--text2); line-height:1.55; margin: 0 0 8px;">
-        ${escapeHtml(getLang() === 'fr'
-          ? 'InjectLog est encadré par le Dr Andrew Farag, MD — spécialiste de la rétine, fellow en rétine chirurgicale à l\'UTMB (Galveston, TX) après une résidence en ophtalmologie à l\'Université de Sherbrooke.'
-          : 'InjectLog is backed by Dr. Andrew Farag, MD — retina specialist, surgical-retina fellow at UTMB (Galveston, TX) after ophthalmology residency at Université de Sherbrooke.')}
-      </p>
-      <p style="font-size:11px; color:var(--text3); margin: 0;">
-        ${escapeHtml(getLang() === 'fr'
-          ? 'Membre de l\'American Society of Retina Specialists. Flux et ergonomie : deux résidents en ophtalmologie.'
-          : 'Member, American Society of Retina Specialists. Workflow + UX feedback: two ophthalmology residents.')}
-      </p>
+    <div class="section-toggle" id="set-about">
+      <div class="toggle-head"><span class="caret">›</span><span>${escapeHtml(fr ? 'À propos' : 'About')}</span></div>
+      <div class="toggle-body">
+        <div class="card" style="text-align:center;">
+          <p style="font-size:13px; color:var(--text2); line-height:1.55; margin: 0 0 8px;">${escapeHtml(fr
+            ? "InjectLog est encadré par le Dr Andrew Farag, MD — spécialiste de la rétine, fellow en rétine chirurgicale à l'UTMB (Galveston, TX) après une résidence en ophtalmologie à l'Université de Sherbrooke."
+            : 'InjectLog is backed by Dr. Andrew Farag, MD — retina specialist, surgical-retina fellow at UTMB (Galveston, TX) after ophthalmology residency at Université de Sherbrooke.')}</p>
+          <p style="font-size:11px; color:var(--text3); margin: 0;">${escapeHtml(fr
+            ? "Membre de l'American Society of Retina Specialists. Flux et ergonomie : deux résidents en ophtalmologie."
+            : 'Member, American Society of Retina Specialists. Workflow + UX feedback: two ophthalmology residents.')}</p>
+        </div>
+      </div>
     </div>`;
 
+  // Persist open/closed state across re-renders. Default: all closed on
+  // first open of Settings this session.
+  state.settingsOpen = state.settingsOpen || new Set();
+  view.querySelectorAll('.section-toggle').forEach(el => {
+    if (state.settingsOpen.has(el.id)) el.classList.add('open');
+    el.querySelector('.toggle-head').onclick = () => {
+      el.classList.toggle('open');
+      if (el.classList.contains('open')) state.settingsOpen.add(el.id);
+      else state.settingsOpen.delete(el.id);
+    };
+  });
+
   view.querySelectorAll('#lang button').forEach(b => {
-    b.onclick = () => { setLang(b.dataset.v); renderSettings(); refreshTabBar(); };
+    b.onclick = () => { setLang(b.dataset.v); render(); };
   });
   document.getElementById('s-lock').onclick = async () => {
     if (lockIsEnabled()) disableLock();
