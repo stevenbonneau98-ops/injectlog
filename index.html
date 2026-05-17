@@ -2423,43 +2423,41 @@ async function renderPatient() {
   titleEl.textContent = formatPatientName(patient);
   primaryBtn.style.display = 'none';
 
-  const eyeCardHtml = (eyeKey) => {
+  // One-line summary per eye: "OD — DME · q8 Eylea · VA 20/40 · CRT 285 µm"
+  // with inline + (add injection) and ✎ (edit eye) buttons. The vertical
+  // colour bar on the left says OD/OS at a glance.
+  const eyeLineHtml = (eyeKey) => {
     const eye = { ...patient.eyes[eyeKey], _eyeKey: eyeKey };
-    const s = eyeStatus(eye, injs);
-    const c = drug(eye.drug).color;
-    const eyeLabel = eyeKey === 'od' ? t('eye.od') : t('eye.os');
+    const eyeLabel = eyeKey === 'od' ? 'OD' : 'OS';
     const eyeInjAsc = injs.filter(i => i.eye === eyeKey).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const lastInj = eyeInjAsc[eyeInjAsc.length - 1];
     const tachy = isTachyphylaxis(eyeInjAsc);
-    // Faint blue (OD) / faint yellow (OS) backgrounds so eyes are
-    // immediately distinguishable at a glance.
+    const accent = eyeKey === 'od' ? '#0A6BFF' : '#F59E0B';
     const tint = eyeKey === 'od'
-      ? 'background:rgba(10,107,255,0.05); border-color:rgba(10,107,255,0.25);'
-      : 'background:rgba(245,158,11,0.07); border-color:rgba(245,158,11,0.30);';
+      ? 'background:rgba(10,107,255,0.06); border-color:rgba(10,107,255,0.22);'
+      : 'background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.30);';
+    let summary;
+    if (!eye.active) {
+      summary = `<span style="color:var(--text3);">${escapeHtml(t('eye.inactive'))}</span>`;
+    } else {
+      const bits = [];
+      if (eye.diagnosis) bits.push(escapeHtml(indicationLabel(eye.diagnosis).toUpperCase()));
+      bits.push(`${escapeHtml(regimenLabel(eye.regimen))}${eye.regimen !== 'prn' ? ` q${eye.intervalWeeks || 4}` : ''} ${escapeHtml(drugLabel(eye.drug))}`);
+      if (lastInj?.vaSnellen) bits.push(`VA ${escapeHtml(lastInj.vaSnellen)}`);
+      if (typeof lastInj?.crtUm === 'number') bits.push(`CRT ${lastInj.crtUm} µm`);
+      summary = bits.join(' · ');
+    }
     return `
-      <div class="eye-card" data-eye="${eyeKey}" style="${tint}">
-        <div class="eye-head">
-          <span class="eye-label">${escapeHtml(eyeLabel)}</span>
-          ${eye.active
-            ? `<span class="status-badge ${s.status}">${escapeHtml(t('status.' + s.status))}${s.status === 'late' && s.daysToNext != null ? ` · ${-s.daysToNext}d` : ''}${s.status === 'future' && s.daysToNext != null ? ` · ${s.daysToNext}d` : ''}</span>`
-            : `<span class="status-badge none">${escapeHtml(t('status.none'))}</span>`}
+      <div class="card" style="${tint} display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px;">
+        <span style="font-family:var(--serif); font-size:16px; font-weight:600; color:${accent}; min-width:28px;">${eyeLabel}</span>
+        <div style="flex:1; font-size:13px; line-height:1.4; min-width:0;">
+          ${summary}
+          ${tachy ? ` <span style="color:#991B1B; font-weight:600;">· ⚠ CRT ×3</span>` : ''}
         </div>
-        ${eye.active ? `
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
-            <span class="drug-pill" style="background:${c};">${escapeHtml(drugLabel(eye.drug))}</span>
-            <span style="font-size:12px; color:var(--text3);">${escapeHtml(regimenLabel(eye.regimen))}${eye.regimen !== 'prn' ? ` · q${eye.intervalWeeks || 4}` : ''}</span>
-            ${tachy ? `<span class="status-badge late" style="background:rgba(220,38,38,0.14); color:#991B1B;">⚠ ${escapeHtml(getLang() === 'fr' ? 'CRT en hausse 3×' : 'CRT rising ×3')}</span>` : ''}
-          </div>
-          <p style="font-size:13px; color:var(--text2); margin: 0 0 8px;">
-            <strong>${escapeHtml(t('eye.diagnosis'))}:</strong> ${escapeHtml(indicationLabel(eye.diagnosis) || '—')}<br>
-            <strong>${escapeHtml(t('eye.last'))}:</strong> ${s.lastDate ? escapeHtml(fmtDate(s.lastDate)) : escapeHtml(t('eye.last.never'))}
-            ${s.loadingTarget ? `<br><strong>${escapeHtml(t('eye.loading.target'))}:</strong> ${s.loadingDone}/${s.loadingTarget}` : ''}
-          </p>
-          <button class="btn-block" data-action="add-injection" data-eye="${eyeKey}">${escapeHtml(t('eye.add.injection'))}</button>
-          <button class="btn-ghost" data-action="edit-eye" data-eye="${eyeKey}" style="margin-top:6px; width:100%;">${escapeHtml(t('btn.edit'))} ${escapeHtml(eyeLabel)}</button>
-        ` : `
-          <p style="font-size:13px; color:var(--text3); margin:0 0 10px;">${escapeHtml(t('eye.inactive'))}</p>
-          <button class="btn-block" data-action="edit-eye" data-eye="${eyeKey}">${escapeHtml(t('eye.activate'))}</button>
-        `}
+        ${eye.active
+          ? `<button class="btn-ghost" data-action="add-injection" data-eye="${eyeKey}" title="${escapeHtml(t('eye.add.injection'))}" style="padding:4px 10px; font-size:18px; font-weight:600; flex:0 0 auto;">+</button>
+             <button class="btn-ghost" data-action="edit-eye" data-eye="${eyeKey}" title="${escapeHtml(t('btn.edit'))}" style="padding:4px 8px; font-size:14px; flex:0 0 auto;">✎</button>`
+          : `<button class="btn-ghost" data-action="edit-eye" data-eye="${eyeKey}" style="padding:4px 10px; font-size:12px; flex:0 0 auto;">${escapeHtml(t('eye.activate'))}</button>`}
       </div>`;
   };
 
@@ -2559,10 +2557,8 @@ async function renderPatient() {
           <div style="font-size:14px; color:var(--text); margin-top:2px;">${allergies.map(k => `<span class="drug-pill" style="background:${drug(k).color}; margin-right:4px;">${escapeHtml(drugLabel(k))}</span>`).join(' ')}</div>
         </div>
       </div>` : ''}
-    <div class="eye-grid">
-      ${eyeCardHtml('od')}
-      ${eyeCardHtml('os')}
-    </div>
+    ${eyeLineHtml('od')}
+    ${eyeLineHtml('os')}
     ${visitsToggle}
     <div style="margin-top:18px;">
       <button id="delete-patient" class="btn-danger">${escapeHtml(t('btn.delete'))}</button>
@@ -4513,12 +4509,72 @@ async function analysePatientWithAi(patient, injs) {
       return;
     }
     const text = data.text || '';
-    // Render the response as paragraphs. We don't parse markdown deeply —
-    // the prompt asks for plain prose with short headed sections, so
-    // splitting on blank lines is good enough.
-    out.innerHTML = text.split(/\n{2,}/).map(p =>
-      `<p style="font-size:14px; line-height:1.55; color:var(--text2); margin: 0 0 10px;">${escapeHtml(p)}</p>`
-    ).join('');
+    // The model emits one block per eye, structured as:
+    //   OD — <indication> · <regimen> · n=<count>
+    //   • Trajectory: ...
+    //   • Vs. consensus: ...
+    //   • Flag: ...           (optional)
+    //   • Consider: ...
+    // We parse line-by-line and render each block as a card tinted by eye
+    // (faint blue OD / faint yellow OS) with bullets stacked beneath the
+    // header. The closing disclaimer line is dropped into a muted footer.
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const blocks = [];
+    let current = null;
+    let disclaimer = '';
+    for (const line of lines) {
+      const eyeMatch = line.match(/^(OD|OS)\s*[—\-:·]\s*(.*)$/i);
+      if (eyeMatch) {
+        if (current) blocks.push(current);
+        current = { eye: eyeMatch[1].toLowerCase(), header: eyeMatch[2].trim(), bullets: [] };
+        continue;
+      }
+      const bulletMatch = line.match(/^[•\-*]\s*(.*)$/);
+      if (bulletMatch && current) {
+        current.bullets.push(bulletMatch[1].trim());
+        continue;
+      }
+      // Disclaimer / fallback prose
+      if (/educational discussion only|discussion éducative uniquement/i.test(line)) {
+        disclaimer = line;
+      } else if (current) {
+        // Continuation of the previous bullet (line-wrapped)
+        if (current.bullets.length) current.bullets[current.bullets.length - 1] += ' ' + line;
+        else current.header += ' ' + line;
+      } else {
+        // No eye header yet — treat as preamble paragraph
+        blocks.push({ eye: null, header: '', bullets: [], prose: line });
+      }
+    }
+    if (current) blocks.push(current);
+    const renderBullet = (b) => {
+      // Highlight the bullet's leading label ("Trajectory:", "Vs.", etc.)
+      const m = b.match(/^([^:]+:)\s*(.*)$/);
+      if (m) {
+        return `<li style="margin: 0 0 4px; padding-left:4px;"><strong style="color:var(--text); font-weight:600;">${escapeHtml(m[1])}</strong> <span style="color:var(--text2);">${escapeHtml(m[2])}</span></li>`;
+      }
+      return `<li style="margin: 0 0 4px; padding-left:4px; color:var(--text2);">${escapeHtml(b)}</li>`;
+    };
+    const cards = blocks.map(b => {
+      if (b.prose) return `<p style="font-size:13px; color:var(--text2); line-height:1.5; margin: 0 0 10px;">${escapeHtml(b.prose)}</p>`;
+      const tint = b.eye === 'od'
+        ? 'background:rgba(10,107,255,0.06); border-color:rgba(10,107,255,0.25);'
+        : 'background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.30);';
+      const eyeLabel = b.eye === 'od' ? t('eye.od') : t('eye.os');
+      return `
+        <div class="card" style="${tint} margin-bottom:10px; padding:12px 14px;">
+          <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:6px;">
+            <span style="font-family:var(--serif); font-size:17px; font-weight:600;">${escapeHtml(eyeLabel)}</span>
+            <span style="font-size:12px; color:var(--text3);">${escapeHtml(b.header)}</span>
+          </div>
+          <ul style="list-style:disc; padding-left:18px; margin:0; font-size:13.5px; line-height:1.5;">
+            ${b.bullets.map(renderBullet).join('')}
+          </ul>
+        </div>`;
+    }).join('');
+    out.innerHTML = cards + (disclaimer
+      ? `<p style="font-size:11px; color:var(--text3); font-style:italic; margin: 12px 4px 0; text-align:center;">${escapeHtml(disclaimer)}</p>`
+      : '');
   } catch (e) {
     const out = el.querySelector('#ai-out');
     if (out) out.innerHTML = `<p style="color:var(--ember); font-size:13px;">${escapeHtml((fr ? 'Erreur réseau : ' : 'Network error: ') + String(e))}</p>`;
