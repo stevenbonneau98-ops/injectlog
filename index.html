@@ -2256,14 +2256,16 @@ function _makeEye() {
 }
 
 async function _seedInjectionsForEye(patientId, eyeKey, eye) {
+  // Every demo eye gets ≥ 4 injections so the dataset is consistently
+  // useful for stats / trend rendering. Loading-phase eyes are past their
+  // 3-dose induction and a few maintenance shots in.
   const historyRoll = seedRandom();
   let totalInj;
   if (eye.regimen === 'loading') {
-    totalInj = seedPickWeighted([[0,10],[1,20],[2,30],[3,30],[4,10]]);
-  } else if (historyRoll < 0.30) totalInj = seedInt(1, 5);
-  else if (historyRoll < 0.70) totalInj = seedInt(6, 15);
-  else totalInj = seedInt(16, 28);
-  if (totalInj === 0) return;
+    totalInj = seedPickWeighted([[4,30],[5,25],[6,20],[7,15],[8,10]]);
+  } else if (historyRoll < 0.25) totalInj = seedInt(4, 7);
+  else if (historyRoll < 0.70) totalInj = seedInt(8, 18);
+  else totalInj = seedInt(19, 30);
 
   const avgIntervalDays = eye.regimen === 'loading' ? 28 : (eye.intervalWeeks * 7);
   const totalDaysBack = totalInj * avgIntervalDays - seedInt(0, avgIntervalDays / 2);
@@ -2307,13 +2309,21 @@ async function _seedInjectionsForEye(patientId, eyeKey, eye) {
     if (seedRandom() < 0.003) complications.push('endophth'); // very rare
 
     // Drug switch only on TAE, post-loading. ~6% per injection after 5.
+    // Real-world current practice: when switching, surgeons now move to
+    // higher-durability agents (Eylea HD or Vabysmo) — they don't
+    // downshift to Avastin or Lucentis. Allowed destinations therefore
+    // exclude avastin/lucentis (and 'other'). If the patient is already
+    // on Eylea HD, the only sensible switch is to Vabysmo, and vice
+    // versa.
     let switchReason = '';
     if (eye.regimen === 'tae' && i >= 5 && seedRandom() < 0.06) {
-      const others = DRUGS.filter(d => d.key !== currentDrug && d.key !== 'other');
-      currentDrug = seedPick(others).key;
-      switchReason = seedPickWeighted([
-        ['durability',38],['partial',27],['no-response',16],['tachyphylaxis',11],['adverse',5],['patient',3],
-      ]);
+      const allowed = ['eylea-hd', 'vabysmo'].filter(k => k !== currentDrug);
+      if (allowed.length) {
+        currentDrug = seedPick(allowed);
+        switchReason = seedPickWeighted([
+          ['durability',38],['partial',27],['no-response',16],['tachyphylaxis',11],['adverse',5],['patient',3],
+        ]);
+      }
     }
     if (eye.regimen === 'tae' && i > 0) {
       if (trajectory === 'improving' || (trajectory === 'stable' && seedRandom() < 0.45)) {
